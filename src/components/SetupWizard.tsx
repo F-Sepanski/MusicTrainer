@@ -94,11 +94,6 @@ export function SetupWizard({ onComplete, onCancel, initialConfig }: Props) {
   return (
     <div className="min-h-screen bg-surface-900 flex items-center justify-center p-4">
       <div className="w-full max-w-lg">
-        {/* Theme toggle */}
-        <div className="flex justify-end mb-2">
-          <ThemeToggle />
-        </div>
-
         {/* Progress */}
         <AnimatedSection type="slide-up">
           <div className="mb-6">
@@ -175,7 +170,10 @@ function StepHeader({ icon, title, subtitle }: { icon: IconName; title: string; 
 
 function WelcomeStep({ onNext }: { onNext: () => void }) {
   return (
-    <div className="flex flex-col items-center text-center gap-6 flex-1 justify-center">
+    <div className="flex flex-col items-center text-center gap-6 flex-1 justify-center relative">
+      <div className="absolute top-0 right-0">
+        <ThemeToggle />
+      </div>
       <div className="text-6xl flex justify-center text-neon-cyan animate-float">
         <Icon name="music" size={64} />
       </div>
@@ -444,21 +442,21 @@ function InstrumentStep({ config, updateConfig }: StepProps) {
 
 function ClefStep({ config, updateConfig }: StepProps) {
   const options = [
-    { clef: 'treble' as const, icon: 'clef' as IconName, label: 'Clave de Sol', desc: 'Violino, Flauta, Guitarra', color: 'text-neon-cyan', border: 'border-neon-cyan/50', bg: 'bg-neon-cyan/10' },
-    { clef: 'bass' as const, icon: 'clef' as IconName, label: 'Clave de Fá', desc: 'Baixo, Piano (graves)', color: 'text-neon-purple', border: 'border-neon-purple/50', bg: 'bg-neon-purple/10' },
+    { clef: 'treble' as const, glyph: '𝄞', label: 'Clave de Sol', desc: 'Violino, Flauta, Guitarra', color: 'text-neon-cyan', border: 'border-neon-cyan/50', bg: 'bg-neon-cyan/10' },
+    { clef: 'bass' as const, glyph: '𝄢', label: 'Clave de Fá', desc: 'Baixo, Piano (graves)', color: 'text-neon-purple', border: 'border-neon-purple/50', bg: 'bg-neon-purple/10' },
   ];
   return (
     <div className="flex flex-col gap-5 flex-1">
       <StepHeader icon="clef" title="Clave" subtitle="A clave que você lê normalmente" />
       <div className="flex gap-4 flex-1 items-center justify-center">
-        {options.map(({ clef, icon, label, desc, color, border, bg }) => (
+        {options.map(({ clef, glyph, label, desc, color, border, bg }) => (
           <button key={clef} onClick={() => updateConfig({ clef })}
             className={`flex-1 p-8 rounded-2xl flex flex-col items-center gap-4 transition-all ${
               config.clef === clef
                 ? `${bg} border-2 ${border} text-primary`
                 : 'bg-surface-700 border border-surface text-secondary hover:border-gray-400 card-hover'
             }`}>
-            <span className={`text-6xl ${color}`}><Icon name={icon} size={56} /></span>
+            <span className={`text-6xl leading-none ${color}`}>{glyph}</span>
             <div className="text-center">
               <div className="font-bold">{label}</div>
               <div className="text-xs text-muted mt-1">{desc}</div>
