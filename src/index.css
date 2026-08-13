@@ -1,0 +1,63 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  body {
+    @apply bg-surface-900 text-gray-100 antialiased;
+    font-family: 'Inter', system-ui, -apple-system, sans-serif;
+  }
+
+  /* Custom scrollbar */
+  ::-webkit-scrollbar {
+    width: 6px;
+  }
+  ::-webkit-scrollbar-track {
+    background: #12121a;
+  }
+  ::-webkit-scrollbar-thumb {
+    background: #333;
+    border-radius: 3px;
+  }
+  ::-webkit-scrollbar-thumb:hover {
+    background: #555;
+  }
+
+  /* Range input styling */
+  input[type="range"] {
+    -webkit-appearance: none;
+    appearance: none;
+    height: 6px;
+    border-radius: 3px;
+    background: #1A1A26;
+    outline: none;
+  }
+  input[type="range"]::-webkit-slider-thumb {
+    -webkit-appearance: none;
+    appearance: none;
+    width: 18px;
+    height: 18px;
+    border-radius: 50%;
+    background: #00F2FE;
+    cursor: pointer;
+    border: 2px solid #0A0A0F;
+    box-shadow: 0 0 8px rgba(0, 242, 254, 0.4);
+  }
+  input[type="range"]::-moz-range-thumb {
+    width: 18px;
+    height: 18px;
+    border-radius: 50%;
+    background: #00F2FE;
+    cursor: pointer;
+    border: 2px solid #0A0A0F;
+    box-shadow: 0 0 8px rgba(0, 242, 254, 0.4);
+  }
+
+  /* VexFlow SVG overrides */
+  svg.vexflow {
+    overflow: visible;
+  }
+  svg.vexflow path {
+    transition: fill 0.2s ease, stroke 0.2s ease;
+  }
+}
