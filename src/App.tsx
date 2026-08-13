@@ -1,40 +1,82 @@
 /**
- * App — root component for MusicTrainer.
+ * App — root component. Manages routing between Home, Wizard, Training, and History.
+ * Auto-runs wizard on first launch if no config is persisted.
  *
  * @module App
  */
 
-import { useState, useCallback } from 'react';
+import { useState, useCallback, useEffect } from 'react';
 import { SetupWizard } from './components/SetupWizard';
 import { ExerciseScreen } from './components/ExerciseScreen';
+import { HomeScreen } from './components/HomeScreen';
+import { HistoryScreen } from './components/HistoryScreen';
+import { ThemeProvider } from './theme/ThemeContext';
+import { loadConfig, saveConfig, loadHistory, clearHistory, type HistoryEntry } from './storage/storage';
 import type { WizardConfig } from './types/wizard';
 
-export default function App() {
-  const [wizardConfig, setWizardConfig] = useState<WizardConfig | null>(null);
+type Screen = 'home' | 'wizard' | 'training' | 'history';
 
-  const handleWizardComplete = useCallback((config: WizardConfig) => {
-    setWizardConfig(config);
+export default function App() {
+  const [screen, setScreen] = useState<Screen>(() => (loadConfig() ? 'home' : 'wizard'));
+  const [config, setConfig] = useState<WizardConfig | null>(() => loadConfig());
+  const [history, setHistory] = useState<HistoryEntry[]>(() => loadHistory());
+
+  const handleWizardComplete = useCallback((wizardConfig: WizardConfig) => {
+    saveConfig(wizardConfig);
+    setConfig(wizardConfig);
+    setScreen('home');
   }, []);
 
-  const handleBackToWizard = useCallback(() => {
-    setWizardConfig(null);
+  const handleStartTraining = useCallback(() => {
+    if (!config) {
+      setScreen('wizard');
+      return;
+    }
+    setScreen('training');
+  }, [config]);
+
+  const handleViewHistory = useCallback(() => setScreen('history'), []);
+
+  const handleClearHistory = useCallback(() => {
+    clearHistory();
+    setHistory([]);
+  }, []);
+
+  const handleExitTraining = useCallback(() => {
+    setHistory(loadHistory());
+    setScreen('home');
   }, []);
 
   return (
-    <main className="min-h-screen bg-surface-900">
-      {!wizardConfig ? (
-        <SetupWizard onComplete={handleWizardComplete} />
-      ) : (
-        <div>
-          <ExerciseScreen wizardConfig={wizardConfig} />
-          <button
-            onClick={handleBackToWizard}
-            className="fixed top-4 right-4 z-50 px-3 py-1.5 rounded-lg text-xs font-medium bg-surface-700/80 backdrop-blur border border-surface-600 text-gray-400 hover:text-white hover:border-gray-500 transition-all"
-          >
-            ⚙ Reconfigurar
-          </button>
-        </div>
-      )}
-    </main>
+    <ThemeProvider>
+      <main className="min-h-screen bg-surface-900">
+        {screen === 'wizard' && (
+          <SetupWizard
+            onComplete={handleWizardComplete}
+            initialConfig={config}
+            onCancel={config ? () => setScreen('home') : undefined}
+          />
+        )}
+        {screen === 'home' && (
+          <HomeScreen
+            config={config}
+            history={history}
+            onStartTraining={handleStartTraining}
+            onRunWizard={() => setScreen('wizard')}
+            onViewHistory={handleViewHistory}
+          />
+        )}
+        {screen === 'training' && (
+          <ExerciseScreen wizardConfig={config} onExit={handleExitTraining} />
+        )}
+        {screen === 'history' && (
+          <HistoryScreen
+            history={history}
+            onBack={() => setScreen('home')}
+            onClear={handleClearHistory}
+          />
+        )}
+      </main>
+    </ThemeProvider>
   );
 }

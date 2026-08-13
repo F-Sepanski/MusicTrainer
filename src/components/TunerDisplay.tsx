@@ -6,6 +6,7 @@
  */
 
 import type { PitchData } from '../types';
+import { Icon } from './Icon';
 
 interface Props {
   pitch: PitchData | null;
@@ -24,29 +25,25 @@ export function TunerDisplay({ pitch, targetMidi, toleranceCents, volumeThreshol
   // Determine if note matches target
   const isMatch = pitch?.midiNote === targetMidi && Math.abs(cents) <= toleranceCents && confidence > 0.4 && volume > volumeThreshold;
   const isClose = pitch?.midiNote === targetMidi && confidence > 0.3 && volume > volumeThreshold;
+  const stateColor = isMatch ? '#10B981' : isClose ? '#FBBF24' : 'var(--text-secondary)';
 
   return (
     <div className="flex flex-col items-center gap-3 p-4">
       {/* Note name */}
       <div className="text-5xl font-bold tracking-wider transition-colors duration-150"
-        style={{ color: isMatch ? '#10B981' : isClose ? '#FBBF24' : '#A0A0B0' }}
+        style={{ color: stateColor }}
       >
         {noteName}
       </div>
 
       {/* Frequency */}
-      <div className="text-lg text-gray-400 font-mono">
+      <div className="text-lg text-secondary font-mono">
         {frequency > 0 ? `${frequency.toFixed(1)} Hz` : '— Hz'}
       </div>
-      {/* Debug info (remove in production) */}
-      <div className="text-[10px] text-gray-600 font-mono">
-        MIDI: {pitch?.midiNote ?? '—'} | Conf: {(confidence * 100).toFixed(0)}% | Vol: {(volume * 1000).toFixed(1)}
-      </div>
+
       {/* Cents indicator */}
       <div className="relative w-64 h-6 bg-surface-700 rounded-full overflow-hidden">
-        {/* Center mark */}
-        <div className="absolute left-1/2 top-0 w-0.5 h-full bg-gray-500 z-10" />
-        {/* Cents bar */}
+        <div className="absolute left-1/2 top-0 w-0.5 h-full bg-surface-600 z-10" />
         <div
           className="absolute top-0 h-full rounded-full transition-all duration-100"
           style={{
@@ -56,32 +53,33 @@ export function TunerDisplay({ pitch, targetMidi, toleranceCents, volumeThreshol
           }}
         />
       </div>
-      <div className="text-sm text-gray-500 font-mono">
+      <div className="text-sm text-muted font-mono">
         {cents > 0 ? '+' : ''}{cents.toFixed(0)} cents
       </div>
 
       {/* Volume bar */}
       <div className="w-64">
-        <div className="text-xs text-gray-500 mb-1">Volume</div>
+        <div className="text-xs text-muted mb-1">Volume</div>
         <div className="w-full h-2 bg-surface-700 rounded-full overflow-hidden">
           <div
             className="h-full rounded-full transition-all duration-75"
             style={{
               width: `${Math.min(volume * 500, 100)}%`,
-              backgroundColor: volume > volumeThreshold ? '#00F2FE' : '#333',
+              backgroundColor: volume > volumeThreshold ? '#00F2FE' : 'var(--bg-surface-600)',
             }}
           />
         </div>
       </div>
 
       {/* Status indicator */}
-      <div className="text-xs px-3 py-1 rounded-full font-medium"
+      <div className="flex items-center gap-2 text-sm px-4 py-1.5 rounded-full font-medium"
         style={{
-          backgroundColor: isMatch ? 'rgba(16,185,129,0.15)' : isClose ? 'rgba(251,191,36,0.15)' : 'rgba(160,160,176,0.1)',
-          color: isMatch ? '#10B981' : isClose ? '#FBBF24' : '#666',
+          backgroundColor: isMatch ? 'rgba(16,185,129,0.15)' : isClose ? 'rgba(251,191,36,0.15)' : 'var(--bg-surface-700)',
+          color: stateColor,
         }}
       >
-        {isMatch ? '✓ Nota correta!' : isClose ? '~ Quase...' : '♫ Aguardando...'}
+        <Icon name={isMatch ? 'check' : 'mic'} size={14} />
+        {isMatch ? 'Nota correta!' : isClose ? 'Quase...' : 'Aguardando...'}
       </div>
     </div>
   );

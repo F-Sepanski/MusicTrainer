@@ -10,6 +10,10 @@ import { audioEngine, type PitchCallback } from '../audio/AudioEngine';
 import { SheetMusicDisplay } from './SheetMusicDisplay';
 import { TunerDisplay } from './TunerDisplay';
 import { generateExercise, resetNoteIdCounter } from '../exercise/generator';
+import { Icon } from './Icon';
+import { Button, Card, AnimatedSection, StatCard, Slider } from './ui';
+import { useTheme } from '../theme/ThemeContext';
+import { appendHistory } from '../storage/storage';
 import type { ExerciseNote, ExerciseConfig, PitchData, SessionResult, AppPhase } from '../types';
 import type { WizardConfig } from '../types/wizard';
 
@@ -26,9 +30,11 @@ const INSTRUMENTS = [
 
 interface Props {
   wizardConfig?: WizardConfig | null;
+  onExit?: () => void;
 }
 
-export function ExerciseScreen({ wizardConfig }: Props) {
+export function ExerciseScreen({ wizardConfig, onExit }: Props) {
+  const { theme } = useTheme();
   const [phase, setPhase] = useState<AppPhase>('setup');
 
   // Build initial config from wizard settings
@@ -64,6 +70,8 @@ export function ExerciseScreen({ wizardConfig }: Props) {
   // ─── Finish exercise (defined early so refs can reference it) ──────
   const finishExercise = useCallback(() => {
     const currentNotes = notesRef.current;
+    const cfg = configRef.current;
+    const wcfg = wizardConfigRef.current;
     const correctNotes = currentNotes.filter((n) => n.status === 'correct').length;
     const avgTime = reactionTimesRef.current.length > 0
       ? reactionTimesRef.current.reduce((a, b) => a + b, 0) / reactionTimesRef.current.length
@@ -72,13 +80,27 @@ export function ExerciseScreen({ wizardConfig }: Props) {
       ? centsOffsetsRef.current.reduce((a, b) => a + b, 0) / centsOffsetsRef.current.length
       : 0;
 
-    setResult({
+    const result: SessionResult = {
       totalNotes: currentNotes.length,
       correctNotes,
       averageResponseTimeMs: Math.round(avgTime),
       averageCentsOffset: Math.round(avgCents * 10) / 10,
       accuracy: Math.round((correctNotes / currentNotes.length) * 100),
+    };
+
+    // Persist to history
+    appendHistory({
+      totalNotes: result.totalNotes,
+      correctNotes: result.correctNotes,
+      averageResponseTimeMs: result.averageResponseTimeMs,
+      averageCentsOffset: result.averageCentsOffset,
+      accuracy: result.accuracy,
+      levelName: `Treino de ${wcfg?.clef === 'bass' ? 'Fá' : 'Sol'}`,
+      clef: cfg.clef,
+      instrument: wcfg?.instrument ?? 'other',
     });
+
+    setResult(result);
     setPhase('results');
   }, []);
 
@@ -305,83 +327,51 @@ export function ExerciseScreen({ wizardConfig }: Props) {
   // ─── Render ──────────────────────────────────────────────
   const currentNote = notes[currentNoteIndex];
   const targetMidi = currentNote?.midiNote ?? 0;
+  const correctCount = notes.filter((n) => n.status === 'correct').length;
 
   return (
     <div className="min-h-screen flex flex-col items-center justify-center px-4 py-8">
       {/* Header */}
-      <header className="w-full max-w-4xl mb-8 text-center">
-        <h1 className="text-3xl font-bold bg-gradient-to-r from-neon-cyan to-neon-purple bg-clip-text text-transparent">
-          ♪ MusicTrainer
-        </h1>
-        <p className="text-gray-500 text-sm mt-1">Sight Reading — Sprint 1 PoC</p>
+      <header className="w-full max-w-4xl mb-8 flex items-center justify-between">
+        {onExit ? (
+          <button
+            onClick={onExit}
+            className="p-2 rounded-lg bg-surface-700 border border-surface hover:border-gray-400 transition-all"
+            aria-label="Sair"
+          >
+            <Icon name="back" size={18} />
+          </button>
+        ) : <div />}
+        <div className="flex items-center gap-2">
+          <Icon name="music" size={24} className="text-neon-cyan" />
+          <h1 className="text-2xl font-bold gradient-text">MusicTrainer</h1>
+        </div>
+        <div className="w-10" />
       </header>
 
       {/* Setup Phase */}
       {phase === 'setup' && (
-        <div className="flex flex-col items-center gap-6 animate-fade-in">
-          <div className="bg-surface-800 rounded-2xl p-8 w-full max-w-md border border-surface-600">
-            <h2 className="text-xl font-semibold mb-4 text-center">Configurar Exercício</h2>
+        <AnimatedSection type="scale-in" className="w-full max-w-md">
+          <Card className="p-8">
+            <h2 className="text-xl font-semibold mb-4 text-center flex items-center justify-center gap-2">
+              <Icon name="settings" size={20} className="text-neon-cyan" />
+              Configurar Exercício
+            </h2>
 
-            {/* Clef selector */}
             <div className="mb-4">
-              <label className="text-sm text-gray-400 block mb-2">Clave</label>
-              <div className="flex gap-2">
-                {(['treble', 'bass'] as const).map((clef) => (
-                  <button
-                    key={clef}
-                    onClick={() => setConfig({ ...config, clef })}
-                    className={`flex-1 py-2 px-4 rounded-lg font-medium transition-all ${
-                      config.clef === clef
-                        ? 'bg-neon-cyan/20 text-neon-cyan border border-neon-cyan/50'
-                        : 'bg-surface-700 text-gray-400 border border-surface-600 hover:border-gray-500'
-                    }`}
-                  >
-                    {clef === 'treble' ? '𝄞 Clave de Sol' : '𝄢 Clave de Fá'}
-                  </button>
-                ))}
-              </div>
+              <label className="text-sm text-secondary block mb-2">Número de Notas</label>
+              <Slider label="Número de Notas" value={config.noteCount}
+                onChange={(v) => setConfig({ ...config, noteCount: v })}
+                min={4} max={32} accent="cyan" />
             </div>
 
-            {/* Note count */}
-            <div className="mb-4">
-              <label className="text-sm text-gray-400 block mb-2">
-                Número de Notas: <span className="text-white font-mono">{config.noteCount}</span>
-              </label>
-              <input
-                type="range"
-                min="4"
-                max="32"
-                value={config.noteCount}
-                onChange={(e) => setConfig({ ...config, noteCount: parseInt(e.target.value) })}
-                className="w-full accent-neon-cyan"
-              />
+            <div className="flex gap-3">
+              <Button variant="primary" size="lg" icon="play" onClick={startExercise} className="flex-1">
+                Iniciar Treino
+              </Button>
             </div>
-
-            {/* Tolerance */}
-            <div className="mb-6">
-              <label className="text-sm text-gray-400 block mb-2">
-                Tolerância: <span className="text-white font-mono">{config.toleranceCents} cents</span>
-              </label>
-              <input
-                type="range"
-                min="10"
-                max="50"
-                step="5"
-                value={config.toleranceCents}
-                onChange={(e) => setConfig({ ...config, toleranceCents: parseInt(e.target.value) })}
-                className="w-full accent-neon-emerald"
-              />
-            </div>
-
-            {/* Start button */}
-            <button
-              onClick={startExercise}
-              className="w-full py-3 rounded-xl font-bold text-lg bg-gradient-to-r from-neon-cyan to-neon-purple text-surface-900 hover:opacity-90 transition-opacity"
-            >
-              ▶ Iniciar Treino
-            </button>
-          </div>
-        </div>
+          </Card>
+        </AnimatedSection>
       )}
 
       {/* Countdown */}
@@ -390,7 +380,7 @@ export function ExerciseScreen({ wizardConfig }: Props) {
           <div className="text-9xl font-bold text-neon-cyan animate-pulse-glow">
             {countdown}
           </div>
-          <p className="text-gray-400 mt-4">Preparar...</p>
+          <p className="text-secondary mt-4">Preparar...</p>
         </div>
       )}
 
@@ -399,87 +389,79 @@ export function ExerciseScreen({ wizardConfig }: Props) {
         <div className="w-full max-w-4xl flex flex-col items-center gap-6 animate-fade-in">
           {/* Progress bar */}
           <div className="w-full max-w-2xl">
-            <div className="flex justify-between text-xs text-gray-500 mb-1">
+            <div className="flex justify-between text-xs text-secondary mb-1">
               <span>Nota {Math.min(currentNoteIndex + 1, notes.length)} de {notes.length}</span>
-              <span>
-                {notes.filter((n) => n.status === 'correct').length} acertos
-              </span>
+              <span className="text-neon-emerald">{correctCount} acertos</span>
             </div>
             <div className="w-full h-2 bg-surface-700 rounded-full overflow-hidden">
               <div
                 className="h-full bg-gradient-to-r from-neon-cyan to-neon-emerald rounded-full transition-all duration-300"
-                style={{
-                  width: `${(notes.filter((n) => n.status === 'correct').length / notes.length) * 100}%`,
-                }}
+                style={{ width: `${(correctCount / notes.length) * 100}%` }}
               />
             </div>
           </div>
 
           {/* Sheet Music */}
-          <div className="bg-surface-800 rounded-2xl p-6 w-full border border-surface-600 shadow-lg shadow-black/30">
-            <SheetMusicDisplay
-              notes={notes}
-              clef={config.clef}
-              width={850}
-              height={220}
-            />
-          </div>
+          <Card className="p-6 w-full">
+            <SheetMusicDisplay notes={notes} clef={config.clef} width={850} height={220} theme={theme} />
+          </Card>
 
           {/* Tuner */}
-          <div className="bg-surface-800 rounded-2xl p-4 w-full max-w-md border border-surface-600">
+          <Card className="p-4 w-full max-w-md">
             <TunerDisplay
               pitch={pitch}
               targetMidi={targetMidi}
               toleranceCents={config.toleranceCents}
               volumeThreshold={wizardConfig?.volumeThreshold}
             />
-          </div>
+          </Card>
 
           {/* Results overlay */}
           {phase === 'results' && result && (
-            <div className="bg-surface-800/95 backdrop-blur rounded-2xl p-8 w-full max-w-md border border-surface-600 animate-slide-up">
-              <h2 className="text-2xl font-bold text-center mb-4 text-neon-emerald">
-                🎉 Exercício Concluído!
-              </h2>
-              <div className="grid grid-cols-2 gap-4 mb-6">
-                <div className="bg-surface-700 rounded-xl p-4 text-center">
-                  <div className="text-3xl font-bold text-neon-cyan">{result.accuracy}%</div>
-                  <div className="text-xs text-gray-400 mt-1">Precisão</div>
+            <AnimatedSection type="slide-up" className="w-full max-w-md">
+              <Card className="p-8 text-center">
+                <div className="flex justify-center mb-3 text-neon-emerald animate-scale-in">
+                  <Icon name="check" size={40} />
                 </div>
-                <div className="bg-surface-700 rounded-xl p-4 text-center">
-                  <div className="text-3xl font-bold text-neon-purple">{result.averageResponseTimeMs}ms</div>
-                  <div className="text-xs text-gray-400 mt-1">Tempo Médio</div>
-                </div>
-                <div className="bg-surface-700 rounded-xl p-4 text-center">
-                  <div className="text-3xl font-bold text-neon-emerald">
-                    {result.correctNotes}/{result.totalNotes}
+                <h2 className="text-2xl font-bold text-center mb-5 text-neon-emerald">
+                  Exercício Concluído!
+                </h2>
+                <div className="grid grid-cols-2 gap-4 mb-6">
+                  <div className="bg-surface-700 rounded-xl p-4 text-center">
+                    <div className="text-3xl font-bold text-neon-cyan">{result.accuracy}%</div>
+                    <div className="text-xs text-secondary mt-1">Precisão</div>
                   </div>
-                  <div className="text-xs text-gray-400 mt-1">Notas Acertadas</div>
-                </div>
-                <div className="bg-surface-700 rounded-xl p-4 text-center">
-                  <div className="text-3xl font-bold" style={{
-                    color: Math.abs(result.averageCentsOffset) <= config.toleranceCents ? '#10B981' : '#F43F5E'
-                  }}>
-                    {result.averageCentsOffset > 0 ? '+' : ''}{result.averageCentsOffset}
+                  <div className="bg-surface-700 rounded-xl p-4 text-center">
+                    <div className="text-3xl font-bold text-neon-purple">{result.averageResponseTimeMs}ms</div>
+                    <div className="text-xs text-secondary mt-1">Tempo Médio</div>
                   </div>
-                  <div className="text-xs text-gray-400 mt-1">Cents Médio</div>
+                  <div className="bg-surface-700 rounded-xl p-4 text-center">
+                    <div className="text-3xl font-bold text-neon-emerald">
+                      {result.correctNotes}/{result.totalNotes}
+                    </div>
+                    <div className="text-xs text-secondary mt-1">Notas Acertadas</div>
+                  </div>
+                  <div className="bg-surface-700 rounded-xl p-4 text-center">
+                    <div className="text-3xl font-bold" style={{
+                      color: Math.abs(result.averageCentsOffset) <= config.toleranceCents ? '#10B981' : '#F43F5E'
+                    }}>
+                      {result.averageCentsOffset > 0 ? '+' : ''}{result.averageCentsOffset}
+                    </div>
+                    <div className="text-xs text-secondary mt-1">Cents Médio</div>
+                  </div>
                 </div>
-              </div>
-              <div className="flex gap-3">
-                <button
-                  onClick={startExercise}
-                  className="flex-1 py-3 rounded-xl font-bold bg-gradient-to-r from-neon-cyan to-neon-purple text-surface-900 hover:opacity-90 transition-opacity"
-                >
-                  🔄 Tentar Novamente
-                </button>
-                <button
-                  onClick={() => { setPhase('setup'); audioEngine.stop(); }}
-                  className="flex-1 py-3 rounded-xl font-bold bg-surface-700 border border-surface-600 hover:border-gray-500 transition-colors"
-                >
-                  ⚙ Configurar
-                </button>
-              </div>
-            </div>
+                <div className="flex gap-3">
+                  <Button variant="primary" icon="play" onClick={startExercise} className="flex-1">
+                    Tentar Novamente
+                  </Button>
+                  {onExit && (
+                    <Button variant="secondary" icon="home" onClick={onExit}>
+                      Início
+                    </Button>
+                  )}
+                </div>
+              </Card>
+            </AnimatedSection>
           )}
         </div>
       )}

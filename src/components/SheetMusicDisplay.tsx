@@ -14,13 +14,14 @@ interface Props {
   clef: 'treble' | 'bass';
   width?: number;
   height?: number;
+  theme?: 'dark' | 'light';
 }
 
 /**
  * Renders a musical staff with the given notes.
  * Notes change color based on their `status` field.
  */
-export function SheetMusicDisplay({ notes, clef, width = 900, height = 250 }: Props) {
+export function SheetMusicDisplay({ notes, clef, width = 900, height = 250, theme = 'dark' }: Props) {
   const containerRef = useRef<HTMLDivElement>(null);
 
   const renderStaff = useCallback(() => {
@@ -35,9 +36,29 @@ export function SheetMusicDisplay({ notes, clef, width = 900, height = 250 }: Pr
     renderer.resize(width, height);
     const context = renderer.getContext();
 
+    // Theme-aware colors
+    const staffLineColor = theme === 'dark' ? '#9aa0aa' : '#4b5563';
+    const defaultNoteColor = theme === 'dark' ? '#cbd5e1' : '#374151';
+
     // Create a staff
     const stave = new Stave(10, 40, width - 20);
     stave.addClef(clef).setContext(context).draw();
+
+    // Style the staff lines and clef for visibility in dark mode
+    const svg = container.querySelector('svg');
+    if (svg) {
+      svg.querySelectorAll('path, line, rect').forEach((el) => {
+        // Don't touch note-colored elements (handled below)
+        const stroke = el.getAttribute('stroke');
+        if (!stroke || stroke === '#000' || stroke === 'black') {
+          el.setAttribute('stroke', staffLineColor);
+        }
+        const fill = el.getAttribute('fill');
+        if (fill && (fill === '#000' || fill === 'black')) {
+          el.setAttribute('fill', staffLineColor);
+        }
+      });
+    }
 
     // Build VexFlow notes
     const vfNotes = notes.map((note) => {
@@ -51,7 +72,7 @@ export function SheetMusicDisplay({ notes, clef, width = 900, height = 250 }: Pr
       switch (note.status) {
         case 'active':
         case 'pending':
-          sn.setStyle({ fillStyle: '#A0A0B0', strokeStyle: '#A0A0B0' });
+          sn.setStyle({ fillStyle: defaultNoteColor, strokeStyle: defaultNoteColor });
           break;
         case 'correct':
           sn.setStyle({ fillStyle: '#10B981', strokeStyle: '#10B981' });
@@ -72,7 +93,7 @@ export function SheetMusicDisplay({ notes, clef, width = 900, height = 250 }: Pr
     new Formatter().joinVoices([voice]).format([voice], width - 60);
 
     voice.draw(context, stave);
-  }, [notes, clef, width, height]);
+  }, [notes, clef, width, height, theme]);
 
   useEffect(() => {
     renderStaff();
