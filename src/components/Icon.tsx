@@ -29,6 +29,8 @@ import {
   faChartLine,
   faRepeat,
   faLock,
+  faPalette,
+  faEraser,
 } from '@fortawesome/free-solid-svg-icons';
 import type { IconDefinition } from '@fortawesome/fontawesome-svg-core';
 
@@ -64,7 +66,9 @@ export type IconName =
   | 'repeat'
   | 'guitar-full'
   | 'keyboard'
-  | 'lock';
+  | 'lock'
+  | 'palette'
+  | 'eraser';
 
 const ICONS: Record<IconName, IconDefinition> = {
   play: faPlay,
@@ -99,6 +103,8 @@ const ICONS: Record<IconName, IconDefinition> = {
   'guitar-full': faGuitar,
   keyboard: faKeyboard,
   lock: faLock,
+  palette: faPalette,
+  eraser: faEraser,
 };
 
 interface IconProps {

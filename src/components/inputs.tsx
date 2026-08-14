@@ -29,8 +29,8 @@ function LabelsToggle({ show, onToggle }: { show: boolean; onToggle: () => void 
       onClick={onToggle}
       className={`px-3 py-1 rounded-lg text-xs font-medium transition-all ${
         show
-          ? 'bg-neon-amber/15 border border-neon-amber/50 text-neon-amber'
-          : 'bg-surface-700 border border-surface text-secondary hover:border-gray-400'
+          ? 'bg-warning-soft border border-warning-soft text-neon-amber'
+          : 'bg-surface-700 border border-surface text-secondary hover:border-adaptive'
       }`}
     >
       {show ? 'Nomes visíveis' : 'Mostrar nomes'}
@@ -60,7 +60,7 @@ export function PianoKeyboard({ onNote, showLabels = false, range = { min: 48, m
             <button
               key={k.midi}
               onClick={() => onNote(k.midi)}
-              className="relative h-28 flex-1 rounded-b-md border transition-all active:scale-y-95 hover:bg-neon-cyan/20"
+              className="relative h-28 flex-1 rounded-b-md border transition-all active:scale-y-95 hover:bg-accent-soft-2"
               style={{
                 background: 'var(--piano-white)',
                 color: show ? 'var(--piano-key-text)' : 'transparent',
@@ -75,7 +75,7 @@ export function PianoKeyboard({ onNote, showLabels = false, range = { min: 48, m
             <button
               key={k.midi}
               onClick={() => onNote(k.midi)}
-              className="absolute top-0 h-16 w-4 rounded-b-md transition-colors hover:bg-gray-500"
+              className="absolute top-0 h-16 w-4 rounded-b-md transition-colors hover:bg-adaptive"
               style={{
                 left: `${(k.midi - range.min) * 28 + 14}px`,
                 zIndex: 2,
@@ -115,7 +115,7 @@ export function GuitarFretboard({ onNote, showLabels = false }: NoteInputProps) 
             onClick={() => setTuning('standard')}
             className={`px-3 py-1 rounded-lg text-xs font-medium transition-all ${
               tuning === 'standard'
-                ? 'bg-neon-cyan/15 border border-neon-cyan/50 text-neon-cyan'
+                ? 'bg-accent-soft border border-accent-soft text-neon-cyan'
                 : 'bg-surface-700 border border-surface text-secondary'
             }`}
           >
@@ -125,7 +125,7 @@ export function GuitarFretboard({ onNote, showLabels = false }: NoteInputProps) 
             onClick={() => setTuning('dropd')}
             className={`px-3 py-1 rounded-lg text-xs font-medium transition-all ${
               tuning === 'dropd'
-                ? 'bg-neon-purple/15 border border-neon-purple/50 text-neon-purple'
+                ? 'bg-purple-soft border border-purple-soft text-neon-purple'
                 : 'bg-surface-700 border border-surface text-secondary'
             }`}
           >
@@ -189,7 +189,7 @@ export function GuitarFretboard({ onNote, showLabels = false }: NoteInputProps) 
                     <button
                       key={fret}
                       onClick={() => onNote(midi)}
-                      className="absolute top-0 bottom-0 transition-colors rounded-sm hover:bg-neon-cyan/20"
+                      className="absolute top-0 bottom-0 transition-colors rounded-sm hover:bg-accent-soft-2"
                       style={{ left: fret * 44, width: 44 }}
                       title={`${midiToName(midi)} (casa ${fret})`}
                     >

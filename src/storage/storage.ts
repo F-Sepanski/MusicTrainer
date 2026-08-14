@@ -80,21 +80,28 @@ export function clearHistory(): void {
   }
 }
 
-export type ThemeMode = 'dark' | 'light';
+import type { ThemeConfig } from '../theme/types';
+import { defaultThemeConfig } from '../theme/apply';
 
-/** Load saved theme preference. */
-export function loadTheme(): ThemeMode {
+/** Load saved theme config. */
+export function loadThemeConfig(): ThemeConfig {
   try {
-    return (localStorage.getItem(THEME_KEY) as ThemeMode) ?? 'dark';
+    const raw = localStorage.getItem(THEME_KEY);
+    if (raw) {
+      const parsed = JSON.parse(raw) as Partial<ThemeConfig>;
+      // Merge with defaults so older saved configs (missing new fields) work.
+      return { ...defaultThemeConfig(), ...parsed } as ThemeConfig;
+    }
+    return defaultThemeConfig();
   } catch {
-    return 'dark';
+    return defaultThemeConfig();
   }
 }
 
-/** Save theme preference. */
-export function saveTheme(theme: ThemeMode): void {
+/** Save theme config. */
+export function saveThemeConfig(config: ThemeConfig): void {
   try {
-    localStorage.setItem(THEME_KEY, theme);
+    localStorage.setItem(THEME_KEY, JSON.stringify(config));
   } catch {
     // ignore
   }

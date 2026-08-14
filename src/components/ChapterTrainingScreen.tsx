@@ -10,7 +10,7 @@ import { audioEngine, type PitchCallback } from '../audio/AudioEngine';
 import { SheetMusicDisplay } from './SheetMusicDisplay';
 import { Icon } from './Icon';
 import { Button, Card, AnimatedSection, StatCard } from './ui';
-import { ThemeToggle } from './ThemeToggle';
+import { AppLayout } from './AppLayout';
 import { useTheme } from '../theme/ThemeContext';
 import { appendHistory } from '../storage/storage';
 import { generateExercise, resetNoteIdCounter, configFromExercise } from '../exercise/generator';
@@ -37,7 +37,8 @@ const LEVEL_UNLOCK: Record<string, number> = {
 };
 
 export function ChapterTrainingScreen({ wizardConfig, onExit }: Props) {
-  const { theme } = useTheme();
+  const { config: themeConfig } = useTheme();
+  const theme = themeConfig.mode;
   // Chapter list gated by the user's level
   const maxUnlock = LEVEL_UNLOCK[wizardConfig.level] ?? 8;
   const unlocked = curriculum.filter((c) => c.index <= maxUnlock);
@@ -50,7 +51,6 @@ export function ChapterTrainingScreen({ wizardConfig, onExit }: Props) {
   const [notes, setNotes] = useState<ExerciseNote[]>([]);
   const [currentNoteIndex, setCurrentNoteIndex] = useState(0);
   const [pitch, setPitch] = useState<PitchData | null>(null);
-  const [countdown, setCountdown] = useState(3);
   const [result, setResult] = useState<SessionResult | null>(null);
 
   const reactionTimesRef = useRef<number[]>([]);
@@ -233,13 +233,9 @@ export function ChapterTrainingScreen({ wizardConfig, onExit }: Props) {
       }
     }
 
-    setPhase('countdown');
-    setCountdown(3);
-    // Quick 600ms transition instead of a long 3s countdown
-    setTimeout(() => {
-      setPhase('playing');
-      noteShownAtRef.current = Date.now();
-    }, 600);
+    // Simple fade transition straight into playing
+    setPhase('playing');
+    noteShownAtRef.current = Date.now();
   }, []);
 
   // ─── Manual note input ───────────────────────────────────
@@ -290,22 +286,14 @@ export function ChapterTrainingScreen({ wizardConfig, onExit }: Props) {
   const correctCount = notes.filter((n) => n.status === 'correct').length;
 
   return (
-    <div className="min-h-screen bg-surface-900 flex flex-col items-center px-4 py-6">
-      {/* Header */}
-      <header className="w-full max-w-4xl mb-6 flex items-center justify-between">
-        <button onClick={onExit} className="p-2 rounded-lg bg-surface-700 border border-surface hover:border-gray-400 transition-all" aria-label="Sair">
-          <Icon name="back" size={18} />
-        </button>
-        <div className="text-center">
-          <h1 className="text-xl font-bold gradient-text">Treinamento por Capítulos</h1>
-          <div className="text-xs text-secondary">Capítulo {chapter.index}: {chapter.title}</div>
-        </div>
-        <ThemeToggle />
-      </header>
-
+    <AppLayout
+      title="Treinamento por Capítulos"
+      subtitle={phase === 'setup' ? undefined : `Capítulo ${chapter.index}: ${chapter.title}`}
+      onBack={onExit}
+    >
       {/* Setup / Chapter selection */}
       {phase === 'setup' && (
-        <AnimatedSection type="slide-up" className="w-full max-w-4xl">
+        <AnimatedSection type="slide-up">
           {/* Chapter selector */}
           <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 mb-6">
             {curriculum.map((ch) => {
@@ -320,8 +308,8 @@ export function ChapterTrainingScreen({ wizardConfig, onExit }: Props) {
                     isLocked
                       ? 'bg-surface-800 border border-surface opacity-50 cursor-not-allowed'
                       : isSelected
-                      ? 'bg-neon-cyan/10 border border-neon-cyan/50'
-                      : 'bg-surface-700 border border-surface hover:border-gray-400 card-hover'
+                      ? 'bg-accent-soft border border-accent-soft'
+                      : 'bg-surface-700 border border-surface hover:border-adaptive card-hover'
                   }`}
                 >
                   <div className="text-xs font-bold text-secondary">Cap {ch.index}</div>
@@ -352,8 +340,8 @@ export function ChapterTrainingScreen({ wizardConfig, onExit }: Props) {
                     onClick={() => setSelectedExercise(ex)}
                     className={`p-3 rounded-xl text-left transition-all flex items-center gap-3 ${
                       isSelected
-                        ? 'bg-neon-cyan/10 border border-neon-cyan/50'
-                        : 'bg-surface-700 border border-surface hover:border-gray-400 card-hover'
+                        ? 'bg-accent-soft border border-accent-soft'
+                        : 'bg-surface-700 border border-surface hover:border-adaptive card-hover'
                     }`}
                   >
                     <div className={`w-7 h-7 rounded-full flex items-center justify-center text-xs font-bold ${
@@ -385,8 +373,8 @@ export function ChapterTrainingScreen({ wizardConfig, onExit }: Props) {
                 onClick={() => setInputMode('mic')}
                 className={`py-3 rounded-xl font-medium transition-all flex items-center justify-center gap-2 ${
                   inputMode === 'mic'
-                    ? 'bg-neon-cyan/15 border border-neon-cyan/50 text-neon-cyan'
-                    : 'bg-surface-700 border border-surface text-secondary hover:border-gray-400'
+                    ? 'bg-accent-soft border border-accent-soft text-neon-cyan'
+                    : 'bg-surface-700 border border-surface text-secondary hover:border-adaptive'
                 }`}
               >
                 <Icon name="mic" size={18} />
@@ -396,8 +384,8 @@ export function ChapterTrainingScreen({ wizardConfig, onExit }: Props) {
                 onClick={() => setInputMode('manual')}
                 className={`py-3 rounded-xl font-medium transition-all flex items-center justify-center gap-2 ${
                   inputMode === 'manual'
-                    ? 'bg-neon-purple/15 border border-neon-purple/50 text-neon-purple'
-                    : 'bg-surface-700 border border-surface text-secondary hover:border-gray-400'
+                    ? 'bg-purple-soft border border-purple-soft text-neon-purple'
+                    : 'bg-surface-700 border border-surface text-secondary hover:border-adaptive'
                 }`}
               >
                 <Icon name="keyboard" size={18} />
@@ -412,19 +400,10 @@ export function ChapterTrainingScreen({ wizardConfig, onExit }: Props) {
         </AnimatedSection>
       )}
 
-      {/* Countdown */}
-      {phase === 'countdown' && (
-        <div className="flex flex-col items-center justify-center flex-1 animate-scale-in">
-          <div className="w-20 h-20 rounded-2xl bg-neon-cyan/10 border border-neon-cyan/30 flex items-center justify-center">
-            <div className="text-4xl font-bold text-neon-cyan animate-pulse-glow">3</div>
-          </div>
-          <p className="text-secondary mt-4 text-sm">Preparar...</p>
-        </div>
-      )}
-
       {/* Playing / Results */}
       {(phase === 'playing' || phase === 'results') && (
-        <div className="w-full max-w-4xl flex flex-col items-center gap-5">
+        <AnimatedSection type="fade" key={phase === 'playing' ? 'playing' : 'results'}>
+        <div className="flex flex-col items-center gap-5">
           {/* Progress */}
           <div className="w-full max-w-2xl">
             <div className="flex justify-between text-xs text-secondary mb-1">
@@ -481,8 +460,9 @@ export function ChapterTrainingScreen({ wizardConfig, onExit }: Props) {
             </AnimatedSection>
           )}
         </div>
+        </AnimatedSection>
       )}
-    </div>
+    </AppLayout>
   );
 }
 
@@ -507,10 +487,10 @@ function TunerMini({ pitch, targetMidi, toleranceCents, volumeThreshold }: {
         <div className="h-full rounded-full transition-all duration-75"
           style={{
             width: `${Math.min((pitch?.volume ?? 0) * 500, 100)}%`,
-            backgroundColor: (pitch?.volume ?? 0) > volumeThreshold ? '#00F2FE' : 'var(--bg-surface-600)',
+            backgroundColor: (pitch?.volume ?? 0) > volumeThreshold ? 'var(--accent)' : 'var(--bg-surface-600)',
           }} />
       </div>
-      <div className={`text-xs px-3 py-1 rounded-full ${isMatch ? 'bg-neon-emerald/15 text-neon-emerald' : active ? 'bg-neon-cyan/10 text-neon-cyan' : 'text-muted bg-surface-700'}`}>
+      <div className={`text-xs px-3 py-1 rounded-full ${isMatch ? 'bg-success-soft text-neon-emerald' : active ? 'bg-accent-soft text-neon-cyan' : 'text-muted bg-surface-700'}`}>
         {isMatch ? 'Nota correta!' : active ? 'Toque a nota alvo...' : 'Aguardando microfone...'}
       </div>
     </div>

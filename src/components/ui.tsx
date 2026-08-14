@@ -22,13 +22,13 @@ export const Button = forwardRef<HTMLButtonElement, ButtonProps>(function Button
 ) {
   const variants: Record<string, string> = {
     primary:
-      'bg-gradient-to-r from-neon-cyan to-neon-purple text-[#0a0a0f] font-bold hover:opacity-90 shadow-lg shadow-neon-purple/20 active:scale-[0.98] transition-all',
+      'accent-btn font-bold hover:opacity-90 shadow-lg shadow-black/20 active:scale-[0.98] transition-all',
     secondary:
-      'bg-surface-700 border border-surface text-primary hover:border-gray-400 transition-all hover:-translate-y-px',
+      'bg-surface-700 border border-surface text-primary hover:border-adaptive transition-all hover:-translate-y-px',
     ghost:
       'bg-transparent text-secondary hover:bg-surface-700 hover:text-primary transition-all',
     success:
-      'bg-gradient-to-r from-neon-emerald to-neon-cyan text-[#0a0a0f] font-bold hover:opacity-90 active:scale-[0.98] transition-all',
+      'accent-success-btn font-bold hover:opacity-90 active:scale-[0.98] transition-all',
   };
   const sizes: Record<string, string> = {
     sm: 'px-4 py-2 text-sm rounded-lg',
@@ -73,11 +73,11 @@ interface AnimatedSectionProps {
   children: ReactNode;
   delay?: number;
   className?: string;
-  type?: 'fade' | 'slide-up' | 'scale-in';
+  type?: 'fade' | 'slide-up' | 'slide-down' | 'scale-in';
 }
 
 export function AnimatedSection({ children, delay = 0, className = '', type = 'fade' }: AnimatedSectionProps) {
-  const animClass = type === 'slide-up' ? 'animate-slide-up' : type === 'scale-in' ? 'animate-scale-in' : 'animate-fade-in';
+  const animClass = type === 'slide-up' ? 'animate-slide-up' : type === 'slide-down' ? 'animate-slide-down' : type === 'scale-in' ? 'animate-scale-in' : 'animate-fade-in';
   return (
     <div
       className={`${animClass} ${className}`}
@@ -103,10 +103,10 @@ interface SliderProps {
 }
 
 const ACCENT_CLASSES: Record<NonNullable<SliderProps['accent']>, string> = {
-  cyan: 'accent-[#00f2fe]',
-  emerald: 'accent-[#10b981]',
-  purple: 'accent-[#8b5cf6]',
-  rose: 'accent-[#f43f5e]',
+  cyan: 'accent-[var(--accent)]',
+  emerald: 'accent-[var(--success)]',
+  purple: 'accent-[var(--accent-secondary)]',
+  rose: 'accent-[var(--error)]',
 };
 
 export function Slider({ label, value, onChange, min, max, step = 1, accent = 'cyan', leftHint, rightHint, format }: SliderProps) {

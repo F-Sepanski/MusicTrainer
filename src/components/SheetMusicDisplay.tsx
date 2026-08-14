@@ -38,9 +38,9 @@ export function SheetMusicDisplay({ notes, clef, width = 900, height = 250, them
     renderer.resize(width, height);
     const context = renderer.getContext();
 
-    // Theme-aware colors
-    const staffLineColor = theme === 'dark' ? '#9aa0aa' : '#4b5563';
-    const defaultNoteColor = theme === 'dark' ? '#cbd5e1' : '#374151';
+    // Theme-aware colors from CSS variables (so themes apply)
+    const staffLineColor = getCssVar('--staff-line', theme === 'dark' ? '#9aa0aa' : '#4b5563');
+    const defaultNoteColor = getCssVar('--note-default', theme === 'dark' ? '#cbd5e1' : '#374151');
 
     // Create a staff
     const stave = new Stave(10, 40, width - 20);
@@ -68,7 +68,10 @@ export function SheetMusicDisplay({ notes, clef, width = 900, height = 250, them
       });
     }
 
-    // Build VexFlow notes
+    // Resolve dynamic status colors from CSS variables (so themes apply)
+    const statusColors = getStatusColors();
+
+    // Apply color based on status
     const vfNotes = notes.map((note) => {
       const sn = new StaveNote({
         clef,
@@ -83,10 +86,10 @@ export function SheetMusicDisplay({ notes, clef, width = 900, height = 250, them
           sn.setStyle({ fillStyle: defaultNoteColor, strokeStyle: defaultNoteColor });
           break;
         case 'correct':
-          sn.setStyle({ fillStyle: '#10B981', strokeStyle: '#10B981' });
+          sn.setStyle({ fillStyle: statusColors.success, strokeStyle: statusColors.success });
           break;
         case 'incorrect':
-          sn.setStyle({ fillStyle: '#F43F5E', strokeStyle: '#F43F5E' });
+          sn.setStyle({ fillStyle: statusColors.error, strokeStyle: statusColors.error });
           break;
       }
 
@@ -122,4 +125,18 @@ function fifthsToKeySpec(fifths: number): string {
   const majorsFlat = ['C', 'F', 'Bb', 'Eb', 'Ab', 'Db', 'Gb', 'Cb'];
   if (fifths >= 0) return `${majors[fifths]}`;
   return `${majorsFlat[-fifths]}`;
+}
+
+/** Read success/error colors from CSS variables (theme-aware). */
+function getStatusColors(): { success: string; error: string } {
+  return {
+    success: getCssVar('--success', '#10b981'),
+    error: getCssVar('--error', '#f43f5e'),
+  };
+}
+
+/** Read a CSS variable value from :root (theme-aware). */
+function getCssVar(name: string, fallback: string): string {
+  const cs = getComputedStyle(document.documentElement);
+  return cs.getPropertyValue(name).trim() || fallback;
 }

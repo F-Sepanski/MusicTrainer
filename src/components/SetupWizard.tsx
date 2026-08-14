@@ -10,7 +10,7 @@ import { useState, useEffect, useRef, useCallback } from 'react';
 import { audioEngine } from '../audio/AudioEngine';
 import { Icon, type IconName } from './Icon';
 import { Button, Card, Slider, AnimatedSection, StatCard } from './ui';
-import { ThemeToggle } from './ThemeToggle';
+import { ThemeSettings } from './ThemeSettings';
 import type { WizardConfig, InstrumentType, PitchData, Level, InputMode, ManualType } from '../types/wizard';
 
 interface Props {
@@ -54,7 +54,7 @@ interface StepProps {
 export function SetupWizard({ onComplete, onCancel, initialConfig }: Props) {
   // Build the ordered steps based on input mode
   const buildSteps = useCallback((mode: InputMode): string[] => {
-    const base = ['Bem-vindo', 'Instrumento', 'Nível', 'Entrada'];
+    const base = ['Bem-vindo', 'Tema', 'Instrumento', 'Nível', 'Entrada'];
     if (mode === 'mic') {
       return [...base, 'Afinação', 'Calibrar', 'Pronto!'];
     }
@@ -89,9 +89,9 @@ export function SetupWizard({ onComplete, onCancel, initialConfig }: Props) {
     setStep((s) => {
       const titles = buildSteps(config.inputMode ?? 'mic');
       const next = Math.min(s + 1, titles.length - 1);
-      // Start audio when leaving mic-based steps (step index 4 = A4 in mic mode)
+      // Start audio when leaving mic-based steps (Afinação is at index 5 in mic flow)
       const isMicFlow = (config.inputMode ?? 'mic') === 'mic';
-      const atA4Entry = isMicFlow && s === 4 && next === 5;
+      const atA4Entry = isMicFlow && s === 5 && next === 6;
       if (atA4Entry && config.deviceId) {
         audioEngine.start(config.a4Frequency ?? 440).catch(console.error);
       }
@@ -112,22 +112,24 @@ export function SetupWizard({ onComplete, onCancel, initialConfig }: Props) {
     if (mode === 'mic') {
       switch (step) {
         case 0: return <WelcomeStep onNext={goNext} />;
-        case 1: return <InstrumentStep {...p} />;
-        case 2: return <LevelStep {...p} />;
-        case 3: return <InputModeStep {...p} />;
-        case 4: return <A4Step {...p} />;
-        case 5: return <CalibrateStep {...p} />;
-        case 6: return <ReadyStep config={config} />;
+        case 1: return <ThemeStep />;
+        case 2: return <InstrumentStep {...p} />;
+        case 3: return <LevelStep {...p} />;
+        case 4: return <InputModeStep {...p} />;
+        case 5: return <A4Step {...p} />;
+        case 6: return <CalibrateStep {...p} />;
+        case 7: return <ReadyStep config={config} />;
       }
     }
     // Manual flow
     switch (step) {
       case 0: return <WelcomeStep onNext={goNext} />;
-      case 1: return <InstrumentStep {...p} />;
-      case 2: return <LevelStep {...p} />;
-      case 3: return <InputModeStep {...p} />;
-      case 4: return <ManualTypeStep {...p} />;
-      case 5: return <ReadyStep config={config} />;
+      case 1: return <ThemeStep />;
+      case 2: return <InstrumentStep {...p} />;
+      case 3: return <LevelStep {...p} />;
+      case 4: return <InputModeStep {...p} />;
+      case 5: return <ManualTypeStep {...p} />;
+      case 6: return <ReadyStep config={config} />;
     }
   };
 
@@ -153,7 +155,7 @@ export function SetupWizard({ onComplete, onCancel, initialConfig }: Props) {
                   className={`absolute -top-[3px] w-[14px] h-[14px] rounded-full transition-all duration-300 -translate-x-1/2 ${
                     i <= step
                       ? i === step
-                        ? 'bg-neon-purple ring-4 ring-neon-purple/20'
+                        ? 'bg-neon-purple ring-4 ring-purple-soft'
                         : 'bg-neon-cyan'
                       : 'bg-surface-600'
                   }`}
@@ -211,9 +213,6 @@ function StepHeader({ icon, title, subtitle }: { icon: IconName; title: string; 
 function WelcomeStep({ onNext }: { onNext: () => void }) {
   return (
     <div className="flex flex-col items-center text-center gap-6 flex-1 justify-center relative">
-      <div className="absolute top-0 right-0">
-        <ThemeToggle />
-      </div>
       <div className="text-6xl flex justify-center text-neon-cyan animate-float">
         <Icon name="music" size={64} />
       </div>
@@ -240,6 +239,17 @@ function WelcomeStep({ onNext }: { onNext: () => void }) {
   );
 }
 
+function ThemeStep() {
+  return (
+    <div className="flex flex-col gap-5 flex-1">
+      <StepHeader icon="palette" title="Personalize o Tema" subtitle="Escolha seu estilo visual" />
+      <div className="overflow-y-auto pr-1 -mr-1">
+        <ThemeSettings />
+      </div>
+    </div>
+  );
+}
+
 function InstrumentStep({ config, updateConfig }: StepProps) {
   return (
     <div className="flex flex-col gap-5 flex-1">
@@ -249,8 +259,8 @@ function InstrumentStep({ config, updateConfig }: StepProps) {
           <button key={inst.type} onClick={() => updateConfig({ instrument: inst.type })}
             className={`p-4 rounded-xl flex flex-col items-center gap-2 transition-all ${
               config.instrument === inst.type
-                ? 'bg-neon-purple/15 border border-neon-purple/50 text-primary'
-                : 'bg-surface-700 border border-surface text-secondary hover:border-gray-400 card-hover'
+                ? 'bg-purple-soft border border-purple-soft text-primary'
+                : 'bg-surface-700 border border-surface text-secondary hover:border-adaptive card-hover'
             }`}>
             <span className="text-neon-purple"><Icon name={inst.icon} size={28} /></span>
             <span className="font-medium text-sm">{inst.label}</span>
@@ -270,8 +280,8 @@ function LevelStep({ config, updateConfig }: StepProps) {
           <button key={lvl.level} onClick={() => updateConfig({ level: lvl.level })}
             className={`p-4 rounded-xl flex items-center gap-3 transition-all ${
               config.level === lvl.level
-                ? 'bg-neon-cyan/10 border border-neon-cyan/50 text-primary'
-                : 'bg-surface-700 border border-surface text-secondary hover:border-gray-400'
+                ? 'bg-accent-soft border border-accent-soft text-primary'
+                : 'bg-surface-700 border border-surface text-secondary hover:border-adaptive'
             }`}>
             <span className={`${config.level === lvl.level ? 'text-neon-cyan' : 'text-muted'}`}>
               <Icon name={lvl.icon} size={22} />
@@ -307,8 +317,8 @@ function InputModeStep({ config, updateConfig }: StepProps) {
         <button onClick={() => updateConfig({ inputMode: 'mic' })}
           className={`p-6 rounded-xl flex items-center gap-4 transition-all ${
             config.inputMode === 'mic'
-              ? 'bg-neon-cyan/10 border-2 border-neon-cyan/50 text-primary'
-              : 'bg-surface-700 border border-surface text-secondary hover:border-gray-400'
+              ? 'bg-accent-soft border-2 border-accent-soft text-primary'
+              : 'bg-surface-700 border border-surface text-secondary hover:border-adaptive'
           }`}>
           <span className="text-neon-cyan"><Icon name="mic" size={32} /></span>
           <div className="text-left">
@@ -319,8 +329,8 @@ function InputModeStep({ config, updateConfig }: StepProps) {
         <button onClick={() => updateConfig({ inputMode: 'manual', manualType: suggestManualType() })}
           className={`p-6 rounded-xl flex items-center gap-4 transition-all ${
             config.inputMode === 'manual'
-              ? 'bg-neon-purple/10 border-2 border-neon-purple/50 text-primary'
-              : 'bg-surface-700 border border-surface text-secondary hover:border-gray-400'
+              ? 'bg-purple-soft border-2 border-purple-soft text-primary'
+              : 'bg-surface-700 border border-surface text-secondary hover:border-adaptive'
           }`}>
           <span className="text-neon-purple"><Icon name="keyboard" size={32} /></span>
           <div className="text-left">
@@ -342,8 +352,8 @@ function ManualTypeStep({ config, updateConfig }: StepProps) {
           <button key={m.type} onClick={() => updateConfig({ manualType: m.type })}
             className={`p-5 rounded-xl flex items-center gap-4 transition-all ${
               config.manualType === m.type
-                ? 'bg-neon-purple/15 border border-neon-purple/50 text-primary'
-                : 'bg-surface-700 border border-surface text-secondary hover:border-gray-400'
+                ? 'bg-purple-soft border border-purple-soft text-primary'
+                : 'bg-surface-700 border border-surface text-secondary hover:border-adaptive'
             }`}>
             <span className="text-neon-purple"><Icon name={m.icon} size={28} /></span>
             <div className="text-left">
@@ -390,8 +400,8 @@ function A4Step({ config, updateConfig, pitch }: StepProps) {
           <button key={v} onClick={() => updateConfig({ a4Frequency: v })}
             className={`flex-1 py-2 rounded-lg text-center transition-all ${
               a4 === v
-                ? 'bg-neon-cyan/15 border border-neon-cyan/50 text-neon-cyan'
-                : 'bg-surface-700 border border-surface text-secondary hover:border-gray-400'
+                ? 'bg-accent-soft border border-accent-soft text-neon-cyan'
+                : 'bg-surface-700 border border-surface text-secondary hover:border-adaptive'
             }`}>
             <div className="text-xs font-bold">{v} Hz</div>
           </button>
@@ -467,7 +477,7 @@ function CalibrateStep({ config, updateConfig, pitch }: StepProps) {
           <div className="h-full rounded-full transition-all duration-75"
             style={{
               width: `${Math.min((parseFloat(volDisplay) / 500) * 100, 100)}%`,
-              backgroundColor: parseFloat(volDisplay) >= thNum ? '#10b981' : '#f43f5e',
+              backgroundColor: parseFloat(volDisplay) >= thNum ? 'var(--success)' : 'var(--error)',
             }} />
         </div>
       </div>
@@ -493,7 +503,7 @@ function CalibrateStep({ config, updateConfig, pitch }: StepProps) {
         <StatCard label="Última Nota" value={lastNoteName || '—'} color="text-neon-cyan" />
         <StatCard label="Notas Tocadas" value={String(noteCount)} />
         <button onClick={suggestThresholds} disabled={noteCount < 2}
-          className="flex-1 rounded-lg text-sm font-medium bg-neon-purple/10 border border-neon-purple/30 text-neon-purple hover:bg-neon-purple/20 transition-all disabled:opacity-30">
+          className="flex-1 rounded-lg text-sm font-medium bg-purple-soft border border-purple-soft text-neon-purple hover:bg-accent-soft-2 transition-all disabled:opacity-30">
           ✨ Auto-sugerir
         </button>
       </div>

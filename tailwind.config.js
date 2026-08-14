@@ -7,11 +7,13 @@ export default {
   theme: {
     extend: {
       colors: {
-        'neon-cyan': '#00F2FE',
-        'neon-emerald': '#10B981',
-        'neon-purple': '#8B5CF6',
-        'neon-rose': '#F43F5E',
-        'neon-amber': '#FBBF24',
+        // Mapped to dynamic CSS variables so themes/accent affect everything
+        'neon-cyan': 'var(--accent)',
+        'neon-emerald': 'var(--success)',
+        'neon-purple': 'var(--accent-secondary)',
+        'neon-rose': 'var(--error)',
+        'neon-amber': 'var(--warning)',
+        'accent': 'var(--accent)',
       },
       animation: {
         'pulse-glow': 'pulse-glow 1.5s ease-in-out infinite',

@@ -5,9 +5,11 @@
  * @module components/HomeScreen
  */
 
-import { useMemo } from 'react';
+import { useMemo, useState } from 'react';
 import { Icon, type IconName } from './Icon';
 import { Button, Card, AnimatedSection, StatCard } from './ui';
+import { AppLayout } from './AppLayout';
+import { ThemeSettings } from './ThemeSettings';
 import { useTheme } from '../theme/ThemeContext';
 import type { WizardConfig } from '../types/wizard';
 import type { HistoryEntry } from '../storage/storage';
@@ -40,7 +42,8 @@ const LEVEL_LABELS: Record<string, string> = {
 };
 
 export function HomeScreen({ config, history, onStartTraining, onRunWizard, onViewHistory }: Props) {
-  const { theme, toggleTheme } = useTheme();
+  const [showTheme, setShowTheme] = useState(false);
+  const { config: themeConfig } = useTheme();
 
   const stats = useMemo(() => {
     if (history.length === 0) {
@@ -63,30 +66,38 @@ export function HomeScreen({ config, history, onStartTraining, onRunWizard, onVi
   const lastSession = history[0];
 
   return (
-    <div className="min-h-screen bg-surface-900">
-      {/* Top bar */}
-      <header className="sticky top-0 z-40 glass border-b border-surface">
-        <div className="max-w-3xl mx-auto px-4 py-3 flex items-center justify-between">
-          <div className="flex items-center gap-2 text-xl font-bold gradient-text">
-            <Icon name="music" size={26} />
-            MusicTrainer
-          </div>
-          <button
-            onClick={toggleTheme}
-            className="p-2.5 rounded-xl bg-surface-700 border border-surface hover:border-gray-400 transition-all hover:-translate-y-px"
-            aria-label="Alternar tema"
-          >
-            <Icon name={theme === 'dark' ? 'sun' : 'moon'} size={18} />
-          </button>
-        </div>
-      </header>
+    <AppLayout
+      title="MusicTrainer"
+      subtitle={config ? `Nível ${levelLabel} · ${instrumentLabel}` : 'Configure seu perfil para começar'}
+      headerAction={
+        <button
+          onClick={() => setShowTheme(!showTheme)}
+          className="p-2.5 rounded-xl bg-surface-700 border border-surface hover:border-adaptive transition-all"
+          aria-label="Temas"
+        >
+          <Icon name="palette" size={18} />
+        </button>
+      }
+    >
+      {/* Theme panel (collapsible) */}
+      {showTheme && (
+        <AnimatedSection type="slide-down" className="mb-6">
+          <Card className="p-6">
+            <h2 className="font-semibold mb-4 flex items-center gap-2">
+              <Icon name="palette" size={18} className="accent-text" />
+              Personalizar Tema
+            </h2>
+            <ThemeSettings />
+          </Card>
+        </AnimatedSection>
+      )}
 
-      <main className="max-w-3xl mx-auto px-4 py-8 space-y-8">
+      <div className="space-y-8">
         {/* Hero / Status */}
         <AnimatedSection type="slide-up">
           <Card className="p-8 text-center bg-gradient-to-br from-surface-800 to-surface-700 relative overflow-hidden">
-            <div className="absolute -top-16 -right-16 w-48 h-48 rounded-full bg-neon-purple/20 blur-3xl animate-float" />
-            <div className="absolute -bottom-16 -left-16 w-48 h-48 rounded-full bg-neon-cyan/20 blur-3xl animate-float" style={{ animationDelay: '-2s' }} />
+            <div className="absolute -top-16 -right-16 w-48 h-48 rounded-full bg-purple-soft blur-3xl animate-float" />
+            <div className="absolute -bottom-16 -left-16 w-48 h-48 rounded-full bg-accent-glow blur-3xl animate-float" style={{ animationDelay: '-2s' }} />
 
             <div className="relative">
               <div className="text-5xl mb-4 flex justify-center animate-pulse-glow">
@@ -129,7 +140,7 @@ export function HomeScreen({ config, history, onStartTraining, onRunWizard, onVi
         <AnimatedSection type="slide-up" delay={150}>
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
             <Card animated className="p-6 flex items-start gap-4" onClick={onViewHistory}>
-              <div className="p-3 rounded-xl bg-neon-purple/15 text-neon-purple">
+              <div className="p-3 rounded-xl bg-purple-soft text-neon-purple">
                 <Icon name="history" size={24} />
               </div>
               <div>
@@ -144,7 +155,7 @@ export function HomeScreen({ config, history, onStartTraining, onRunWizard, onVi
             </Card>
 
             <Card animated className="p-6 flex items-start gap-4" onClick={onRunWizard}>
-              <div className="p-3 rounded-xl bg-neon-cyan/15 text-neon-cyan">
+              <div className="p-3 rounded-xl bg-accent-soft text-neon-cyan">
                 <Icon name="settings" size={24} />
               </div>
               <div>
@@ -161,7 +172,7 @@ export function HomeScreen({ config, history, onStartTraining, onRunWizard, onVi
           <AnimatedSection type="slide-up" delay={200}>
             <Card className="p-6">
               <div className="flex items-center gap-2 mb-4">
-                <Icon name="clock" size={18} className="text-neon-cyan" />
+                <Icon name="clock" size={18} className="accent-text" />
                 <h3 className="font-semibold">Última Sessão</h3>
                 <span className="text-xs text-muted ml-auto">
                   {new Date(lastSession.timestamp).toLocaleString('pt-BR')}
@@ -175,7 +186,7 @@ export function HomeScreen({ config, history, onStartTraining, onRunWizard, onVi
             </Card>
           </AnimatedSection>
         )}
-      </main>
-    </div>
+      </div>
+    </AppLayout>
   );
 }

@@ -10,6 +10,7 @@
     --bg-surface-700: #eef0f4;
     --bg-surface-600: #e2e5eb;
     --border-surface: #d7dbe3;
+    --border-hover: #aeb6c2;
     --text-primary: #1a1a26;
     --text-secondary: #6b7280;
     --text-muted: #9ca3af;
@@ -22,6 +23,12 @@
     --piano-white: #ffffff;
     --piano-black: #1a1a26;
     --piano-key-text: #4b5563;
+    /* Dynamic accent & status (overridden by applyTheme) */
+    --accent: #00f2fe;
+    --accent-secondary: #8b5cf6;
+    --success: #10b981;
+    --error: #f43f5e;
+    --warning: #fbbf24;
   }
 
   .dark {
@@ -31,6 +38,7 @@
     --bg-surface-700: #1a1a26;
     --bg-surface-600: #222233;
     --border-surface: #2e2e42;
+    --border-hover: #43435c;
     --text-primary: #f3f4f6;
     --text-secondary: #9ca3af;
     --text-muted: #6b7280;
@@ -84,19 +92,19 @@
     width: 18px;
     height: 18px;
     border-radius: 50%;
-    background: #00f2fe;
+    background: var(--accent);
     cursor: pointer;
     border: 2px solid var(--bg-surface-800);
-    box-shadow: 0 0 8px rgba(0, 242, 254, 0.4);
+    box-shadow: 0 0 8px color-mix(in srgb, var(--accent) 40%, transparent);
   }
   input[type="range"]::-moz-range-thumb {
     width: 18px;
     height: 18px;
     border-radius: 50%;
-    background: #00f2fe;
+    background: var(--accent);
     cursor: pointer;
     border: 2px solid var(--bg-surface-800);
-    box-shadow: 0 0 8px rgba(0, 242, 254, 0.4);
+    box-shadow: 0 0 8px color-mix(in srgb, var(--accent) 40%, transparent);
   }
 
   /* VexFlow SVG overrides */
@@ -120,6 +128,8 @@
   .bg-surface-700 { background-color: var(--bg-surface-700); }
   .bg-surface-600 { background-color: var(--bg-surface-600); }
   .border-surface { border-color: var(--border-surface); }
+  .hover\:border-adaptive:hover { border-color: var(--border-hover); }
+  .hover\:bg-adaptive:hover { background-color: color-mix(in srgb, var(--bg-surface-600) 55%, var(--border-hover)); }
   .text-primary { color: var(--text-primary); }
   .text-secondary { color: var(--text-secondary); }
   .text-muted { color: var(--text-muted); }
@@ -139,11 +149,48 @@
     box-shadow: 0 12px 40px rgba(0, 0, 0, 0.18);
   }
   .gradient-text {
-    background: linear-gradient(135deg, #00f2fe 0%, #8b5cf6 100%);
+    background: linear-gradient(135deg, var(--accent) 0%, var(--accent-secondary) 100%);
     -webkit-background-clip: text;
     background-clip: text;
     color: transparent;
   }
+  .accent-bg {
+    background-color: var(--accent);
+  }
+  .accent-text {
+    color: var(--accent);
+  }
+  .accent-border {
+    border-color: color-mix(in srgb, var(--accent) 50%, transparent);
+  }
+  .accent-soft-bg {
+    background-color: color-mix(in srgb, var(--accent) 12%, transparent);
+  }
+  .accent-secondary-text {
+    color: var(--accent-secondary);
+  }
+  .accent-btn {
+    background: linear-gradient(135deg, var(--accent) 0%, var(--accent-secondary) 100%);
+    color: #0a0a0f;
+  }
+  .accent-success-btn {
+    background: linear-gradient(135deg, var(--success) 0%, var(--accent) 100%);
+    color: #0a0a0f;
+  }
+  /* Soft backgrounds & borders using color-mix (works with any color value) */
+  .bg-accent-soft { background-color: color-mix(in srgb, var(--accent) 12%, transparent); }
+  .bg-accent-soft-2 { background-color: color-mix(in srgb, var(--accent) 20%, transparent); }
+  .bg-purple-soft { background-color: color-mix(in srgb, var(--accent-secondary) 15%, transparent); }
+  .border-accent-soft { border-color: color-mix(in srgb, var(--accent) 50%, transparent); }
+  .border-accent-soft-2 { border-color: color-mix(in srgb, var(--accent) 30%, transparent); }
+  .border-purple-soft { border-color: color-mix(in srgb, var(--accent-secondary) 50%, transparent); }
+  .bg-success-soft { background-color: color-mix(in srgb, var(--success) 15%, transparent); }
+  .border-success-soft { border-color: color-mix(in srgb, var(--success) 50%, transparent); }
+  .bg-warning-soft { background-color: color-mix(in srgb, var(--warning) 15%, transparent); }
+  .border-warning-soft { border-color: color-mix(in srgb, var(--warning) 50%, transparent); }
+  .hover\:bg-accent-soft:hover { background-color: color-mix(in srgb, var(--accent) 12%, transparent); }
+  .hover\:bg-accent-soft-2:hover { background-color: color-mix(in srgb, var(--accent) 28%, transparent); }
+  .bg-accent-glow { background-color: color-mix(in srgb, var(--accent) 25%, transparent); }
   .shimmer-bg {
     background: linear-gradient(90deg, var(--bg-surface-700), var(--bg-surface-600), var(--bg-surface-700));
     background-size: 200% 100%;
