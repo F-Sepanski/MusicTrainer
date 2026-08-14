@@ -17,13 +17,15 @@ interface AppLayoutProps {
   onBack?: () => void;
   /** Right-side header action (e.g. theme settings); optional */
   headerAction?: ReactNode;
-  /** Content area (max-width is standardized to max-w-4xl) */
+  /** Content area (max-width is standardized to max-w-4xl unless `wide` is set) */
   children: ReactNode;
   /** Extra classes for the outer container */
   className?: string;
+  /** When true, content area is full-width (no max-width constraint). */
+  wide?: boolean;
 }
 
-export function AppLayout({ title, subtitle, onBack, headerAction, children, className = '' }: AppLayoutProps) {
+export function AppLayout({ title, subtitle, onBack, headerAction, children, className = '', wide = false }: AppLayoutProps) {
   return (
     <div className={`min-h-screen bg-surface-900 flex flex-col ${className}`}>
       {/* Header */}
@@ -47,7 +49,7 @@ export function AppLayout({ title, subtitle, onBack, headerAction, children, cla
       </header>
 
       {/* Content */}
-      <main className="flex-1 w-full max-w-4xl mx-auto px-4 sm:px-6 py-8">
+      <main className={`flex-1 w-full mx-auto px-4 sm:px-6 py-8 ${wide ? 'max-w-6xl' : 'max-w-4xl'}`}>
         {children}
       </main>
     </div>

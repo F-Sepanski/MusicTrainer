@@ -71,6 +71,8 @@ export function SetupWizard({ onComplete, onCancel, initialConfig }: Props) {
     level: initialConfig?.level ?? 'beginner',
     inputMode: initialConfig?.inputMode ?? 'mic',
     manualType: initialConfig?.manualType ?? 'piano',
+    noteCount: initialConfig?.noteCount ?? 12,
+    notationSystem: initialConfig?.notationSystem ?? 'letters',
   });
   const [step, setStep] = useState(0);
   const [pitch, setPitch] = useState<PitchData | null>(null);
@@ -408,7 +410,41 @@ function A4Step({ config, updateConfig, pitch }: StepProps) {
         ))}
       </div>
 
-      <p className="text-xs text-muted text-center">Na dúvida, use 440 Hz.</p>
+      {/* Transposição / Ajuste de Oitava */}
+      <div className="flex flex-col gap-1.5 pt-1">
+        <label className="text-xs font-semibold text-secondary flex items-center gap-1.5">
+          <Icon name="tuning" size={13} /> Transposição de Oitava (Microfone)
+        </label>
+        <div className="grid grid-cols-5 gap-1.5">
+          {[
+            { value: -2, label: '-2', sub: '2 baix.' },
+            { value: -1, label: '-1', sub: 'Violão' },
+            { value: 0, label: '0', sub: 'Real' },
+            { value: 1, label: '+1', sub: '1 acim.' },
+            { value: 2, label: '+2', sub: '2 acim.' },
+          ].map((opt) => {
+            const currentShift = config.octaveShift ?? (config.instrument === 'guitar' ? -1 : 0);
+            const isSelected = currentShift === opt.value;
+            return (
+              <button
+                key={opt.value}
+                type="button"
+                onClick={() => updateConfig({ octaveShift: opt.value })}
+                className={`py-2 px-1 rounded-lg text-center transition-all ${
+                  isSelected
+                    ? 'bg-accent-soft border border-accent-soft text-neon-cyan font-bold'
+                    : 'bg-surface-700 border border-surface text-secondary hover:border-adaptive'
+                }`}
+              >
+                <div className="text-xs">{opt.label}</div>
+                <div className="text-[9px] text-muted">{opt.sub}</div>
+              </button>
+            );
+          })}
+        </div>
+      </div>
+
+      <p className="text-xs text-muted text-center">Na dúvida, use 440 Hz e Tom Real (0) ou Violão (-1).</p>
     </div>
   );
 }

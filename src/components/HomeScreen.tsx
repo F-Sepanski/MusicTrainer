@@ -7,9 +7,10 @@
 
 import { useMemo, useState } from 'react';
 import { Icon, type IconName } from './Icon';
-import { Button, Card, AnimatedSection, StatCard } from './ui';
+import { Button, Card, AnimatedSection, StatCard, Modal } from './ui';
 import { AppLayout } from './AppLayout';
 import { ThemeSettings } from './ThemeSettings';
+import { SettingsModal } from './SettingsModal';
 import { useTheme } from '../theme/ThemeContext';
 import type { WizardConfig } from '../types/wizard';
 import type { HistoryEntry } from '../storage/storage';
@@ -20,6 +21,7 @@ interface Props {
   onStartTraining: () => void;
   onRunWizard: () => void;
   onViewHistory: () => void;
+  onUpdateConfig: (config: WizardConfig) => void;
 }
 
 const INSTRUMENT_ICONS: Record<string, IconName> = {
@@ -41,8 +43,9 @@ const LEVEL_LABELS: Record<string, string> = {
   professional: 'Profissional',
 };
 
-export function HomeScreen({ config, history, onStartTraining, onRunWizard, onViewHistory }: Props) {
+export function HomeScreen({ config, history, onStartTraining, onRunWizard, onViewHistory, onUpdateConfig }: Props) {
   const [showTheme, setShowTheme] = useState(false);
+  const [showSettings, setShowSettings] = useState(false);
   const { config: themeConfig } = useTheme();
 
   const stats = useMemo(() => {
@@ -70,26 +73,42 @@ export function HomeScreen({ config, history, onStartTraining, onRunWizard, onVi
       title="MusicTrainer"
       subtitle={config ? `Nível ${levelLabel} · ${instrumentLabel}` : 'Configure seu perfil para começar'}
       headerAction={
-        <button
-          onClick={() => setShowTheme(!showTheme)}
-          className="p-2.5 rounded-xl bg-surface-700 border border-surface hover:border-adaptive transition-all"
-          aria-label="Temas"
-        >
-          <Icon name="palette" size={18} />
-        </button>
+        <div className="flex items-center gap-2">
+          <button
+            onClick={() => setShowSettings(true)}
+            className="p-2.5 rounded-xl bg-surface-700 border border-surface hover:border-adaptive transition-all"
+            aria-label="Configurações"
+            disabled={!config}
+          >
+            <Icon name="settings" size={18} />
+          </button>
+          <button
+            onClick={() => setShowTheme(!showTheme)}
+            className="p-2.5 rounded-xl bg-surface-700 border border-surface hover:border-adaptive transition-all"
+            aria-label="Temas"
+          >
+            <Icon name="palette" size={18} />
+          </button>
+        </div>
       }
     >
-      {/* Theme panel (collapsible) */}
-      {showTheme && (
-        <AnimatedSection type="slide-down" className="mb-6">
-          <Card className="p-6">
-            <h2 className="font-semibold mb-4 flex items-center gap-2">
-              <Icon name="palette" size={18} className="accent-text" />
-              Personalizar Tema
-            </h2>
-            <ThemeSettings />
-          </Card>
-        </AnimatedSection>
+      {/* Theme modal */}
+      <Modal open={showTheme} onClose={() => setShowTheme(false)} title="Personalizar Tema">
+        <ThemeSettings />
+      </Modal>
+
+      {/* Settings modal */}
+      {config && (
+        <SettingsModal
+          open={showSettings}
+          onClose={() => setShowSettings(false)}
+          config={config}
+          onSave={onUpdateConfig}
+          onRunWizard={() => {
+            setShowSettings(false);
+            onRunWizard();
+          }}
+        />
       )}
 
       <div className="space-y-8">
@@ -116,9 +135,15 @@ export function HomeScreen({ config, history, onStartTraining, onRunWizard, onVi
                 <Button variant="primary" size="lg" icon="play" onClick={onStartTraining}>
                   Iniciar Treinamento
                 </Button>
-                <Button variant="secondary" size="lg" icon="wizard" onClick={onRunWizard}>
-                  {config ? 'Reconfigurar' : 'Configurar'}
-                </Button>
+                {config ? (
+                  <Button variant="secondary" size="lg" icon="settings" onClick={() => setShowSettings(true)}>
+                    Configurações
+                  </Button>
+                ) : (
+                  <Button variant="secondary" size="lg" icon="wizard" onClick={onRunWizard}>
+                    Configurar
+                  </Button>
+                )}
               </div>
             </div>
           </Card>
@@ -154,13 +179,13 @@ export function HomeScreen({ config, history, onStartTraining, onRunWizard, onVi
               <Icon name="chevron-right" size={20} className="ml-auto text-muted" />
             </Card>
 
-            <Card animated className="p-6 flex items-start gap-4" onClick={onRunWizard}>
+            <Card animated className="p-6 flex items-start gap-4" onClick={() => setShowSettings(true)}>
               <div className="p-3 rounded-xl bg-accent-soft text-neon-cyan">
                 <Icon name="settings" size={24} />
               </div>
               <div>
-                <h3 className="font-semibold mb-1">Configuração</h3>
-                <p className="text-sm text-secondary">Calibrar microfone, instrumento e ambiente</p>
+                <h3 className="font-semibold mb-1">Configurações</h3>
+                <p className="text-sm text-secondary">Ajustar instrumento, nível, entrada e sensibilidade</p>
               </div>
               <Icon name="chevron-right" size={20} className="ml-auto text-muted" />
             </Card>

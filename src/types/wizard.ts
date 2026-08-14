@@ -27,6 +27,12 @@ export interface WizardConfig {
   inputMode: InputMode;
   /** Manual input widget type (when inputMode is 'manual') */
   manualType: ManualType;
+  /** Number of notes per exercise */
+  noteCount?: number;
+  /** Notation system: letters (C, D, E...) or solfege (Dó, Ré, Mi...) */
+  notationSystem?: 'letters' | 'solfege';
+  /** Octave shift / transposition: -2 (2 abaixo), -1 (1 abaixo / violão), 0 (real), 1 (1 acima), 2 (2 acima) */
+  octaveShift?: number;
 }
 
 export type InstrumentType =

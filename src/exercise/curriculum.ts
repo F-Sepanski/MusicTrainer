@@ -95,10 +95,11 @@ export function isAlteredInKey(pitchClass: number, accidentals: string[]): boole
   return accidentals.includes(name);
 }
 
-/** Map pitch class to its natural letter name (C=0 → 'C', etc.). */
-export function pitchClassToLetter(pitchClass: number): string {
-  const letters = ['C', '', 'D', '', 'E', 'F', '', 'G', '', 'A', '', 'B'];
-  return letters[((pitchClass % 12) + 12) % 12];
+import { pitchClassToName, type NotationSystem } from '../audio/noteFrequencies';
+
+/** Map pitch class to its note name (C=0 → 'C' or 'Dó', etc.). */
+export function pitchClassToLetter(pitchClass: number, notation: NotationSystem = 'letters'): string {
+  return pitchClassToName(pitchClass, notation, false);
 }
 
 export interface CurriculumChapter extends Chapter {}
@@ -107,17 +108,22 @@ export interface CurriculumChapter extends Chapter {}
  * Build progressive exercises for a chapter. Each exercise introduces
  * a note or concept incrementally for complete learning.
  */
-function buildNaturalExercises(prefix: string, range: { min: number; max: number }): ChapterExercise[] {
+function buildNaturalExercises(
+  prefix: string,
+  range: { min: number; max: number },
+  notation: NotationSystem = 'letters'
+): ChapterExercise[] {
   // Progressively add notes: C → C+D → C+D+E → ... full scale
   const sequence = [0, 2, 4, 5, 7, 9, 11];
   const exercises: ChapterExercise[] = [];
   for (let i = 0; i < sequence.length; i++) {
     const pool = sequence.slice(0, i + 1);
     const focus = sequence[i];
+    const focusName = pitchClassToName(focus, notation);
     exercises.push({
       id: `${prefix}-e${i + 1}`,
-      title: focus === 0 ? 'Nota Dó' : `Até ${pitchClassToLetter(focus)}`,
-      description: `Exercício com ${i + 1} nota(s): ${pool.map((p) => pitchClassToLetter(p)).join(', ')}`,
+      title: focus === 0 ? (notation === 'solfege' ? 'Nota Dó' : 'Nota C') : `Até ${focusName}`,
+      description: `Exercício com ${i + 1} nota(s): ${pool.map((p) => pitchClassToName(p, notation)).join(', ')}`,
       pool,
       focusNote: focus,
       keyFifths: 0,
@@ -127,32 +133,99 @@ function buildNaturalExercises(prefix: string, range: { min: number; max: number
   return exercises;
 }
 
-function buildSharpExercises(prefix: string, range: { min: number; max: number }): ChapterExercise[] {
-  // Introduce each sharp progressively
+function buildSharpExercises(
+  prefix: string,
+  range: { min: number; max: number },
+  notation: NotationSystem = 'letters'
+): ChapterExercise[] {
+  const isSolfege = notation === 'solfege';
   return [
-    { id: `${prefix}-e1`, title: 'Fá Sustenido (F#)', description: 'Familiarize-se com o F# na armadura', pool: [0, 2, 4, 5, 6, 7, 9, 11], focusNote: 6, keyFifths: 1 },
-    { id: `${prefix}-e2`, title: 'Dó Sustenido (C#)', description: 'Adicione o C# (2 sustenidos)', pool: [0, 1, 2, 4, 5, 6, 7, 9, 11], focusNote: 1, keyFifths: 2 },
-    { id: `${prefix}-e3`, title: 'Sol Sustenido (G#)', description: 'Adicione o G# (3 sustenidos)', pool: [0, 1, 2, 4, 5, 6, 7, 8, 9, 11], focusNote: 8, keyFifths: 3 },
-    { id: `${prefix}-e4`, title: 'Cromático com Sustenidos', description: 'Todos os sustenidos', pool: [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11], keyFifths: 4 },
+    {
+      id: `${prefix}-e1`,
+      title: isSolfege ? 'Fá Sustenido (Fá#)' : 'F Sustenido (F#)',
+      description: isSolfege ? 'Familiarize-se com o Fá# na armadura' : 'Familiarize-se com o F# na armadura',
+      pool: [0, 2, 4, 5, 6, 7, 9, 11],
+      focusNote: 6,
+      keyFifths: 1,
+    },
+    {
+      id: `${prefix}-e2`,
+      title: isSolfege ? 'Dó Sustenido (Dó#)' : 'C Sustenido (C#)',
+      description: isSolfege ? 'Adicione o Dó# (2 sustenidos)' : 'Adicione o C# (2 sustenidos)',
+      pool: [0, 1, 2, 4, 5, 6, 7, 9, 11],
+      focusNote: 1,
+      keyFifths: 2,
+    },
+    {
+      id: `${prefix}-e3`,
+      title: isSolfege ? 'Sol Sustenido (Sol#)' : 'G Sustenido (G#)',
+      description: isSolfege ? 'Adicione o Sol# (3 sustenidos)' : 'Adicione o G# (3 sustenidos)',
+      pool: [0, 1, 2, 4, 5, 6, 7, 8, 9, 11],
+      focusNote: 8,
+      keyFifths: 3,
+    },
+    {
+      id: `${prefix}-e4`,
+      title: 'Cromático com Sustenidos',
+      description: 'Todos os sustenidos',
+      pool: [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11],
+      keyFifths: 4,
+    },
   ];
 }
 
-function buildFlatExercises(prefix: string, range: { min: number; max: number }): ChapterExercise[] {
+function buildFlatExercises(
+  prefix: string,
+  range: { min: number; max: number },
+  notation: NotationSystem = 'letters'
+): ChapterExercise[] {
+  const isSolfege = notation === 'solfege';
   return [
-    { id: `${prefix}-e1`, title: 'Si Bemol (Bb)', description: 'Familiarize-se com o Bb na armadura', pool: [0, 2, 4, 5, 7, 9, 10, 11], focusNote: 10, keyFifths: -1 },
-    { id: `${prefix}-e2`, title: 'Mi Bemol (Eb)', description: 'Adicione o Eb (2 bemóis)', pool: [0, 2, 3, 4, 5, 7, 9, 10, 11], focusNote: 3, keyFifths: -2 },
-    { id: `${prefix}-e3`, title: 'Lá Bemol (Ab)', description: 'Adicione o Ab (3 bemóis)', pool: [0, 1, 2, 3, 4, 5, 7, 8, 9, 10, 11], focusNote: 8, keyFifths: -3 },
-    { id: `${prefix}-e4`, title: 'Cromático com Bemóis', description: 'Todos os bemóis', pool: [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11], keyFifths: -4 },
+    {
+      id: `${prefix}-e1`,
+      title: isSolfege ? 'Si Bemol (Sib)' : 'B Bemol (Bb)',
+      description: isSolfege ? 'Familiarize-se com o Sib na armadura' : 'Familiarize-se com o Bb na armadura',
+      pool: [0, 2, 4, 5, 7, 9, 10, 11],
+      focusNote: 10,
+      keyFifths: -1,
+    },
+    {
+      id: `${prefix}-e2`,
+      title: isSolfege ? 'Mi Bemol (Mib)' : 'E Bemol (Eb)',
+      description: isSolfege ? 'Adicione o Mib (2 bemóis)' : 'Adicione o Eb (2 bemóis)',
+      pool: [0, 2, 3, 4, 5, 7, 9, 10, 11],
+      focusNote: 3,
+      keyFifths: -2,
+    },
+    {
+      id: `${prefix}-e3`,
+      title: isSolfege ? 'Lá Bemol (Láb)' : 'A Bemol (Ab)',
+      description: isSolfege ? 'Adicione o Láb (3 bemóis)' : 'Adicione o Ab (3 bemóis)',
+      pool: [0, 1, 2, 3, 4, 5, 7, 8, 9, 10, 11],
+      focusNote: 8,
+      keyFifths: -3,
+    },
+    {
+      id: `${prefix}-e4`,
+      title: 'Cromático com Bemóis',
+      description: 'Todos os bemóis',
+      pool: [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11],
+      keyFifths: -4,
+    },
   ];
 }
 
-function buildKeySignatureExercises(prefix: string, range: { min: number; max: number }): ChapterExercise[] {
-  // Each exercise uses a key with more accidentals
+function buildKeySignatureExercises(
+  prefix: string,
+  range: { min: number; max: number },
+  notation: NotationSystem = 'letters'
+): ChapterExercise[] {
+  const isSolfege = notation === 'solfege';
   return [
-    { id: `${prefix}-e1`, title: 'G Maior (1#)', description: 'Armadura com 1 sustenido', pool: [0, 2, 4, 5, 6, 7, 9, 11], keyFifths: 1 },
-    { id: `${prefix}-e2`, title: 'D Maior (2#)', description: 'Armadura com 2 sustenidos', pool: [0, 1, 2, 4, 5, 6, 7, 9, 11], keyFifths: 2 },
-    { id: `${prefix}-e3`, title: 'A Maior (3#)', description: 'Armadura com 3 sustenidos', pool: [0, 1, 2, 4, 5, 6, 7, 8, 9, 11], keyFifths: 3 },
-    { id: `${prefix}-e4`, title: 'E Maior (4#)', description: 'Armadura com 4 sustenidos', pool: [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 11], keyFifths: 4 },
+    { id: `${prefix}-e1`, title: isSolfege ? 'Sol Maior (1#)' : 'G Maior (1#)', description: 'Armadura com 1 sustenido', pool: [0, 2, 4, 5, 6, 7, 9, 11], keyFifths: 1 },
+    { id: `${prefix}-e2`, title: isSolfege ? 'Ré Maior (2#)' : 'D Maior (2#)', description: 'Armadura com 2 sustenidos', pool: [0, 1, 2, 4, 5, 6, 7, 9, 11], keyFifths: 2 },
+    { id: `${prefix}-e3`, title: isSolfege ? 'Lá Maior (3#)' : 'A Maior (3#)', description: 'Armadura com 3 sustenidos', pool: [0, 1, 2, 4, 5, 6, 7, 8, 9, 11], keyFifths: 3 },
+    { id: `${prefix}-e4`, title: isSolfege ? 'Mi Maior (4#)' : 'E Maior (4#)', description: 'Armadura com 4 sustenidos', pool: [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 11], keyFifths: 4 },
   ];
 }
 
@@ -165,16 +238,20 @@ function buildRhythmExercises(prefix: string, range: { min: number; max: number 
   ];
 }
 
-function buildBassExercises(prefix: string, range: { min: number; max: number }): ChapterExercise[] {
-  // Progressive notes in bass clef
+function buildBassExercises(
+  prefix: string,
+  range: { min: number; max: number },
+  notation: NotationSystem = 'letters'
+): ChapterExercise[] {
   const sequence = [0, 2, 4, 5, 7, 9, 11];
   const exercises: ChapterExercise[] = [];
   for (let i = 0; i < sequence.length; i++) {
     const pool = sequence.slice(0, i + 1);
+    const name = pitchClassToName(sequence[i], notation);
     exercises.push({
       id: `${prefix}-e${i + 1}`,
-      title: `Bass Até ${pitchClassToLetter(sequence[i])}`,
-      description: `Clave de Fá com ${i + 1} nota(s)`,
+      title: `Clave de Fá Até ${name}`,
+      description: `Clave de Fá com ${i + 1} nota(s): ${pool.map((p) => pitchClassToName(p, notation)).join(', ')}`,
       pool,
       keyFifths: 0,
       clef: 'bass',
@@ -188,14 +265,17 @@ function buildBassExercises(prefix: string, range: { min: number; max: number })
  * Build the full curriculum. Each chapter adds notes progressively.
  * The pools are MIDI pitch classes (0-11) that can appear.
  */
-export function buildCurriculum(): CurriculumChapter[] {
+export function buildCurriculum(notation: NotationSystem = 'letters'): CurriculumChapter[] {
+  const isSolfege = notation === 'solfege';
   return [
     {
       id: 'ch1',
       index: 1,
       title: 'Notas Naturais',
       icon: 'treble',
-      description: 'Clave de Sol, apenas notas naturais (dó, ré, mi, fá, sol, lá, si)',
+      description: isSolfege
+        ? 'Clave de Sol, apenas notas naturais (dó, ré, mi, fá, sol, lá, si)'
+        : 'Clave de Sol, apenas notas naturais (C, D, E, F, G, A, B)',
       pools: {
         easy: [0, 2, 4, 7, 9, 11],
         medium: [0, 2, 4, 5, 7, 9, 11],
@@ -204,14 +284,14 @@ export function buildCurriculum(): CurriculumChapter[] {
       keySignature: CIRCLE_OF_FIFTHS[0],
       hasAccidentals: false,
       range: { min: 60, max: 77 },
-      exercises: buildNaturalExercises('ch1', { min: 60, max: 77 }),
+      exercises: buildNaturalExercises('ch1', { min: 60, max: 77 }, notation),
     },
     {
       id: 'ch2',
       index: 2,
       title: 'Acidentes Sustenidos',
       icon: 'sharp',
-      description: 'Introduz sustenidos (#) e notas cromáticas',
+      description: 'Introduz sustenidos (♯) e notas cromáticas',
       pools: {
         easy: [0, 1, 2, 4, 5, 7, 9, 11],
         medium: [0, 1, 2, 3, 4, 5, 7, 8, 9, 11],
@@ -220,7 +300,7 @@ export function buildCurriculum(): CurriculumChapter[] {
       keySignature: CIRCLE_OF_FIFTHS[1], // G Major (1 sharp)
       hasAccidentals: true,
       range: { min: 60, max: 79 },
-      exercises: buildSharpExercises('ch2', { min: 60, max: 79 }),
+      exercises: buildSharpExercises('ch2', { min: 60, max: 79 }, notation),
     },
     {
       id: 'ch3',
@@ -236,7 +316,7 @@ export function buildCurriculum(): CurriculumChapter[] {
       keySignature: CIRCLE_OF_FIFTHS[8], // F Major (1 flat)
       hasAccidentals: true,
       range: { min: 58, max: 79 },
-      exercises: buildFlatExercises('ch3', { min: 58, max: 79 }),
+      exercises: buildFlatExercises('ch3', { min: 58, max: 79 }, notation),
     },
     {
       id: 'ch4',
@@ -252,7 +332,7 @@ export function buildCurriculum(): CurriculumChapter[] {
       keySignature: CIRCLE_OF_FIFTHS[3], // A Major (3 sharps)
       hasAccidentals: true,
       range: { min: 55, max: 79 },
-      exercises: buildKeySignatureExercises('ch4', { min: 55, max: 79 }),
+      exercises: buildKeySignatureExercises('ch4', { min: 55, max: 79 }, notation),
     },
     {
       id: 'ch5',
@@ -267,24 +347,24 @@ export function buildCurriculum(): CurriculumChapter[] {
       },
       keySignature: CIRCLE_OF_FIFTHS[0],
       hasAccidentals: false,
-      range: { min: 57, max: 79 },
-      exercises: buildRhythmExercises('ch5', { min: 57, max: 79 }),
+      range: { min: 60, max: 77 },
+      exercises: buildRhythmExercises('ch5', { min: 60, max: 77 }),
     },
     {
       id: 'ch6',
       index: 6,
       title: 'Clave de Fá',
       icon: 'bass',
-      description: 'Prática na clave de Fá com notas graves',
+      description: 'Leitura completa na clave de Fá (notas graves)',
       pools: {
         easy: [0, 2, 4, 7, 9, 11],
         medium: [0, 2, 4, 5, 7, 9, 11],
-        hard: [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11],
+        hard: [0, 2, 4, 5, 7, 9, 11],
       },
       keySignature: CIRCLE_OF_FIFTHS[0],
       hasAccidentals: false,
-      range: { min: 40, max: 64 },
-      exercises: buildBassExercises('ch6', { min: 40, max: 64 }),
+      range: { min: 40, max: 60 },
+      exercises: buildBassExercises('ch6', { min: 40, max: 60 }, notation),
     },
     {
       id: 'ch7',

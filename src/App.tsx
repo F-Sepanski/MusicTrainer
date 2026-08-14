@@ -27,6 +27,11 @@ export default function App() {
     setScreen('home');
   }, []);
 
+  const handleUpdateConfig = useCallback((updated: WizardConfig) => {
+    saveConfig(updated);
+    setConfig(updated);
+  }, []);
+
   const handleStartTraining = useCallback(() => {
     if (!config) {
       setScreen('wizard');
@@ -64,10 +69,11 @@ export default function App() {
             onStartTraining={handleStartTraining}
             onRunWizard={() => setScreen('wizard')}
             onViewHistory={handleViewHistory}
+            onUpdateConfig={handleUpdateConfig}
           />
         )}
         {screen === 'training' && config && (
-          <ChapterTrainingScreen wizardConfig={config} onExit={handleExitTraining} />
+          <ChapterTrainingScreen wizardConfig={config} onExit={handleExitTraining} onUpdateConfig={handleUpdateConfig} />
         )}
         {screen === 'history' && (
           <HistoryScreen

@@ -158,3 +158,46 @@ export function StatCard({ label, value, icon, color = 'text-neon-cyan' }: StatC
     </div>
   );
 }
+
+/* ── Modal ────────────────────────────────────────────────── */
+interface ModalProps {
+  open: boolean;
+  onClose: () => void;
+  title?: string;
+  children: ReactNode;
+  className?: string;
+  closeOnBackdrop?: boolean;
+}
+
+export function Modal({ open, onClose, title, children, className = '', closeOnBackdrop = true }: ModalProps) {
+  if (!open) return null;
+  return (
+    <div
+      className="fixed inset-0 z-50 flex items-center justify-center p-4"
+      role="dialog"
+      aria-modal="true"
+    >
+      <div
+        className="absolute inset-0 bg-black/60 backdrop-blur-sm animate-fade-in"
+        onClick={closeOnBackdrop ? onClose : undefined}
+      />
+      <div
+        className={`relative glass rounded-2xl border border-surface shadow-2xl w-full max-w-lg max-h-[85vh] flex flex-col animate-scale-in ${className}`}
+      >
+        {title && (
+          <div className="flex items-center justify-between px-6 py-4 border-b border-surface shrink-0">
+            <h3 className="font-semibold">{title}</h3>
+            <button
+              onClick={onClose}
+              className="p-1.5 rounded-lg bg-surface-700 border border-surface hover:border-adaptive transition-all"
+              aria-label="Fechar"
+            >
+              <Icon name="back" size={14} />
+            </button>
+          </div>
+        )}
+        <div className="p-6 overflow-y-auto">{children}</div>
+      </div>
+    </div>
+  );
+}

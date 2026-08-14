@@ -17,6 +17,29 @@ Plano de ação estratégico e técnico para o desenvolvimento de um aplicativo 
 10. [Plano de Ação Executivo (Cronograma Sprint por Sprint)](#10-plano-de-ação-executivo-cronograma-sprint-por-sprint)
 11. [Matriz de Riscos Técnicos e Estratégias de Mitigação](#11-matriz-de-riscos-técnicos-e-estratégias-de-mitigação)
 12. [Checklist de Qualidade & Métricas de Sucesso (KPIs)](#12-checklist-de-qualidade--métricas-de-sucesso-kpis)
+13. [🔍 Avaliação do Estado Atual e Próximos Passos](#13-avaliação-do-estado-atual-e-próximos-passos)
+
+---
+
+## ✅ Status do Projeto (Atualizado em 2026-08-14)
+
+| Área | Status | Observação |
+| :--- | :---: | :--- |
+| Núcleo de Áudio (YIN + AudioWorklet) | ✅ Implementado | Detecção de pitch em thread dedicada |
+| Renderização VexFlow | ✅ Implementado | Notas com cores de status (verde/vermelho) |
+| Wizard de Configuração | ✅ Implementado | Mic A4/tolerância/threshold + manual (piano/violão/círculo) |
+| Rota de Exercícios | ✅ Implementado | 8 capítulos × múltiplos exercícios, níveis e armaduras |
+| Entrada Manual | ✅ Implementado | Piano, braço de violão e círculo de quintas |
+| Sistema de Temas Dinâmico | ✅ Implementado | 18 presets (dark/light), accent custom, auto-accent |
+| Histórico de Sessões | ✅ Implementado | Persistido em `localStorage` |
+| Interface Unificada (AppLayout) | ✅ Implementado | Header único, transições fade |
+| **Metrônomo** | ❌ Não iniciado | Planejado |
+| **PWA / Offline** | 🔶 Parcial | Plugin instalado, ainda não configurado no `vite.config.ts` |
+| **Dexie.js / IndexedDB** | ❌ Não iniciado | Ainda usa `localStorage` |
+| **Dashboard com Gráficos** | ❌ Não iniciado | Recharts/Chart.js ainda não adicionados |
+| **Mapa de Calor da Pauta** | ❌ Não iniciado | Planejado |
+| **Algoritmo Adaptativo (fraquezas)** | ❌ Não iniciado | Planejado |
+| **Navegação por Pedal MIDI** | ❌ Não iniciado | Planejado |
 
 ---
 
@@ -41,10 +64,10 @@ Criar uma plataforma de treinamento de leitura musical à primeira vista que com
 | **Frontend Framework** | **React 19 + Vite + TypeScript** | Inicialização ultrarrápida, tipagem estática rigorosa para estruturas musicais e ecossistema moderno. |
 | **Renderização Musical** | **VexFlow 4.x / 5.x** | Renderização vetorial (SVG/Canvas) direta, leve, flexível e ideal para alterar cores de notas em tempo real. |
 | **Processamento de Áudio** | **Web Audio API + AudioWorklet** | Leitura contínua do microfone fora da Main Thread, evitando travamentos na renderização visual. |
-| **Algoritmo de Pitch** | **YIN / MPM via WebAssembly (WASM)** ou `pitchy` | Algoritmo de autocorrelação com alta acurácia para frequências fundamentais (A0 a C8) e rejeição de ruído. |
+| **Algoritmo de Pitch** | **YIN implementado em JS dentro do `AudioWorklet`** *(em vez de WASM/`pitchy`)* | Algoritmo de autocorrelação com alta acurácia para frequências fundamentais (A0 a C8) e rejeição de ruído. |
 | **Estilização / UI** | **Tailwind CSS + Vanilla CSS Variables** | Tema dark neon premium, alta customização visual e suporte fluido a glassmorphism. |
-| **Animações** | **Framer Motion** | Transições de tela suaves, animações de micro-feedback e feedback de nível concluído. |
-| **Persistência de Dados** | **Dexie.js (IndexedDB)** | Armazenamento local estruturado e ultrarrápido para sessões, histórico de notas e progresso. |
+| **Animações** | **Animações CSS/Tailwind** *(em vez de Framer Motion)* | Transições de tela suaves, micro-feedback e fade de fase. |
+| **Persistência de Dados** | **Dexie.js (IndexedDB)** *(planejado)* — atualmente `localStorage` em `src/storage/storage.ts` | Armazenamento local estruturado e ultrarrápido para sessões, histórico de notas e progresso. |
 | **Visualização de Dados** | **Recharts / Chart.js** | Gráficos responsivos de evolução, tempo de reação e mapas de calor de precisão. |
 | **PWA / Service Worker** | **Vite PWA Plugin** | Cache inteligente de assets e scripts para funcionamento offline completo. |
 
@@ -258,64 +281,57 @@ export interface SessionHistory {
 
 ## 🚀 10. Plano de Ação Executivo (Cronograma Sprint por Sprint)
 
-O desenvolvimento está estruturado em **6 Sprints de 1 semana cada**:
+> **Nota de progresso (2026-08-14):** O trabalho das Sprints 1–3 já foi amplamente realizado (ver seção 13). O cronograma abaixo foi **reorganizado** para refletir o que ainda falta, mantendo as novas datas.
 
 ```mermaid
 gantt
-    title Cronograma de Desenvolvimento (6 Semanas)
+    title Cronograma Revisado de Desenvolvimento
     dateFormat  YYYY-MM-DD
     section Sprint 1
     PoC de Áudio & VexFlow         :done, s1, 2026-08-17, 7d
     section Sprint 2
-    Motor de Partituras Dinâmico   :active, s2, 2026-08-24, 7d
+    Motor de Partituras Dinâmico   :done, s2, 2026-08-24, 7d
     section Sprint 3
-    Rota de Exercícios & Níveis    :s3, 2026-08-31, 7d
+    Rota de Exercícios & Níveis    :done, s3, 2026-08-31, 7d
     section Sprint 4
-    Módulo de Estatísticas & DB    :s4, 2026-09-07, 7d
+    Estatísticas & DB (Dexie)      :active, s4, 2026-09-07, 7d
     section Sprint 5
     UI/UX Premium & PWA Offline    :s5, 2026-09-14, 7d
     section Sprint 6
     Calibração, Testes & Launch    :s6, 2026-09-21, 7d
 ```
 
-### 📝 Detalhamento das Entregas por Sprint:
+### 📝 Detalhamento das Entregas por Sprint (Revisado)
 
-#### **Sprint 1: Proof of Concept (PoC) do Núcleo de Áudio e Partitura**
-- [ ] Configurar repositório Vite + React + TypeScript + Tailwind CSS.
-- [ ] Criar o pipeline de áudio com `navigator.mediaDevices.getUserMedia`.
-- [ ] Integrar biblioteca de detecção de afinação (`pitchy` ou Rust YIN WASM) dentro de um `AudioWorklet`.
-- [ ] Montar protótipo funcional: renderizar 1 nota na Clave de Sol e mudar sua cor para verde quando o usuário tocar/cantar a nota certa no microfone.
+#### ✅ Sprint 1–3 (Concluídas)
+> Sprint 1 (PoC Áudio/VexFlow), Sprint 2 (Motor de Partituras) e Sprint 3 (Rota de Exercícios) **foram implementadas**. Detalhes completos na seção [13](#13-avaliação-do-estado-atual-e-próximos-passos). Principais entregas:
+- ✅ Pipeline de áudio `getUserMedia` → `AudioWorklet` → YIN.
+- ✅ `<SheetMusicDisplay />` sobre VexFlow 5, com cores dinâmicas de status.
+- ✅ Gerador procedural de notas (`generator.ts`) com pools, armaduras e ritmo.
+- ✅ Rota com 8 capítulos progressivos × múltiplos exercícios.
+- ✅ Máquina de estados (setup → playing → results), transições fade.
+- ✅ Modo de entrada manual (piano, violão, círculo de quintas).
+- ✅ Sistema de temas dinâmico (18 presets) + accent custom/auto.
+- ✅ Wizard de calibração (mic A4/tolerância/threshold) e entrada manual.
 
-#### **Sprint 2: Motor de Renderização & Gerador de Exercícios**
-- [ ] Criar o componente modular `<SheetMusicDisplay />` sobre a API do VexFlow.
-- [ ] Desenvolver o gerador procedural de notas (capaz de criar pautas com base em parâmetros de clave, acidentes e amplitude).
-- [ ] Implementar o metrônomo digital baseado na Web Audio API (para evitar *jitter* do `setInterval`).
-- [ ] Adicionar suporte a alternância instantânea entre Clave de Sol, Clave de Fá e Clave de Dó.
-
-#### **Sprint 3: Rota Metodológica & Mecânicas de Gamificação**
-- [ ] Criar o arquivo JSON mestre com a definição dos 40+ níveis da Rota de Aprendizado.
-- [ ] Construir a tela do Mapa da Trilha com status dos níveis (bloqueado, desbloqueado, estrelas).
-- [ ] Desenvolver a máquina de estados do exercício (Contagem regressiva ➔ Leitura ➔ Validação ➔ Feedback ➔ Resumo).
-- [ ] Adicionar efeitos sonoros de feedback (sucesso, erro, nível concluído).
-
-#### **Sprint 4: Armazenamento Local-First & Dashboard de Estatísticas**
-- [ ] Configurar o banco IndexedDB utilizando `Dexie.js`.
-- [ ] Gravar automaticamente os dados de cada nota e sessão finalizada.
+#### **Sprint 4: Armazenamento Local-First & Dashboard de Estatísticas** (em andamento)
+- [ ] Migrar de `localStorage` para **IndexedDB via Dexie.js** (volume de dados cresce com o histórico).
+- [ ] Persistir estatísticas por **nota individual** (NoteStat) além do resumo de sessão.
 - [ ] Criar o componente **Mapa de Calor da Pauta (Staff Heatmap)**.
-- [ ] Desenvolver os gráficos de evolução temporal (evolução da velocidade em ms e precisão %).
+- [ ] Desenvolver os gráficos de evolução temporal (velocidade em ms e precisão %) — Recharts/Chart.js.
 - [ ] Implementar o algoritmo de recomendação de treino baseado em fraquezas.
 
 #### **Sprint 5: Polimento Visual (UI/UX), Responsividade & PWA**
-- [ ] Aplicar o tema Dark Neon com suporte a Glassmorphism e micro-animações em Framer Motion.
-- [ ] Garantir responsividade para smartphones, tablets (suporte a suporte de partitura) e desktops.
-- [ ] Implementar suporte a navegação hands-free por pedal MIDI/Bluetooth (para virada de página).
-- [ ] Configurar PWA (Manifest, Icons, Service Worker) para instalação e uso 100% offline.
+- [ ] Configurar o **vite-plugin-pwa** (Manifest, Icons, Service Worker) — plugin já instalado.
+- [ ] Garantir responsividade para smartphones e tablets (suporte de partitura).
+- [ ] Implementar o **metrônomo** digital baseado na Web Audio API.
+- [ ] Polir micro-animações e estados vazios.
 
 #### **Sprint 6: Otimização de Performance, Calibração e Lançamento**
 - [ ] Realizar testes de acurácia com múltiplos instrumentos (Piano, Violão, Flauta, Saxofone, Canto).
 - [ ] Calibrar o algoritmo de rejeição de ruído em ambientes ruidosos.
-- [ ] Otimizar uso de memória e CPU para dispositivos móveis de menor desempenho.
-- [ ] Criar documentação do código, guia do usuário e fazer o deploy inicial.
+- [ ] Otimizar uso de memória e CPU para dispositivos móveis.
+- [ ] Criar documentação, guia do usuário e fazer o deploy inicial.
 
 ---
 
@@ -344,6 +360,66 @@ gantt
 - **Retenção de D7**: $> 40\%$ dos usuários retornam no 7º dia.
 - **Evolução de Velocidade**: Redução média de pelo menos $30\%$ no tempo de reação ($t_{reação}$) após 2 semanas de uso constante da Rota de Exercícios.
 - **Conclusão de Sessão**: $> 85\%$ dos treinos iniciados são levados até o fim.
+
+---
+
+## 🔍 13. Avaliação do Estado Atual e Próximos Passos
+
+> **Atualizado em 2026-08-14.** Esta seção descreve em detalhe o que **já foi implementado** no código e recomenda as **próximas prioridades**, alinhadas às Sprints 4–6.
+
+### 13.1 O que Já Foi Implementado
+
+#### Arquitetura & Stack (conforme implementado)
+| Arquivo | Papel |
+| :--- | :--- |
+| `src/audio/AudioEngine.ts` | Gerencia mic, `AudioContext`, carrega o `AudioWorklet` e emite eventos de pitch. |
+| `src/audio/audioWorkletProcessor.ts` | **YIN** de detecção de afinação rodando fora da Main Thread. |
+| `src/audio/noteFrequencies.ts` | Conversões MIDI ↔ nome/VexFlow key, faixas de Clave de Sol/Fá. |
+| `src/components/SheetMusicDisplay.tsx` | Render VexFlow 5 (SVG), cores de status lidas das CSS vars do tema. |
+| `src/components/SetupWizard.tsx` | Wizard: Tema → Instrumento → Nível → Entrada (mic ou manual) → calibração. |
+| `src/components/inputs.tsx` | Entrada manual: Piano, Braço de Violão, Círculo de Quintas (sem revelar resposta). |
+| `src/exercise/curriculum.ts` | 8 capítulos progressivos com múltiplos exercícios, pools e armaduras. |
+| `src/exercise/generator.ts` | Geração procedural de notas com pools, armaduras e durações rítmicas. |
+| `src/components/ChapterTrainingScreen.tsx` | Tela de treino (máquina de estados, fade, resultados). |
+| `src/theme/*` | Sistema de temas dinâmico (18 presets, accent custom/auto, text-secondary derivado). |
+| `src/storage/storage.ts` | Persistência de config, histórico e tema em `localStorage`. |
+
+#### Detalhes das Entregas Concluídas
+- **Áudio (Sprint 1)** ✅
+  - Microfone via `getUserMedia` com `echoCancellation/noiseSuppression/autoGainControl` desativados.
+  - `AudioWorklet` dedicado implementando **YIN**; callbacks de pitch em tempo real.
+- **Partitura (Sprint 2)** ✅
+  - `<SheetMusicDisplay />` com `Stave`, `StaveNote`, `Voice`, `Formatter` do VexFlow 5.
+  - Suporte a Clave de Sol/Fá e armaduras de clave (via `addKeySignature`).
+  - Notas coloridas por status (pending/active/correct/incorrect) usando `--success`/`--error` do tema.
+- **Rota de Exercícios (Sprint 3)** ✅
+  - 8 capítulos: Naturais, Sustenidos, Bemóis, Armaduras, Rítmica, Clave de Fá, Fá+Acidentes, Cromático.
+  - Múltiplos exercícios por capítulo; pools por dificuldade; níveis desbloqueiam capítulos.
+  - Máquina de estados com transição **fade** (sem contagem regressiva).
+  - Entrada manual (piano/violão/círculo) para leitura sem microfone.
+- **UI/Tema (parcial de Sprint 5)** ✅
+  - Layout unificado (`AppLayout`), temas dinâmicos com presets e accent personalizável.
+  - Botão de toggle claro/escuro **removido**; a seleção de tema é feita via presets.
+
+### 13.2 Próximos Passos Recomendados (Priorizados)
+
+| Prioridade | Tarefa | Impacto | Esforço |
+| :---: | :--- | :--- | :--- |
+| 🔴 **P1** | **Migrar para Dexie.js / IndexedDB** e registrar estatísticas por nota (`NoteStat`) | Base para tudo de análise | Médio |
+| 🔴 **P1** | **Dashboard de Estatísticas** com gráficos (Recharts) de evolução de precisão/velocidade | Diferencial de valor | Alto |
+| 🔴 **P1** | **Metrônomo** digital (Web Audio) para o capítulo de Rítmica | Fecha a Fase 4 da rota | Médio |
+| 🟠 **P2** | **Mapa de Calor da Pauta (Staff Heatmap)** | Diagnóstico visual avançado | Médio |
+| 🟠 **P2** | **Algoritmo adaptativo** (treino focado nas notas com maior latência/erro) | Personalização | Alto |
+| 🟠 **P2** | **Configurar PWA** (`vite-plugin-pwa` já instalado) — Manifest, SW, offline | Requisito de produto | Baixo |
+| 🟡 **P3** | **Responsividade** aprimorada para mobile/tablet | Alcance | Médio |
+| 🟡 **P3** | **Mapeamento de teclado físico** (A,W,S,E,D...) completo | UX | Baixo |
+| 🟡 **P3** | **Efeitos sonoros** de feedback (acerto/erro) | Engajamento | Baixo |
+| ⚪ **P4** | **Clave de Dó** (Viola), **polifonia/acordes** e **Grand Staff** | Expande a rota | Alto |
+| ⚪ **P4** | **Navegação por pedal MIDI/Bluetooth** | Hands-free | Alto |
+| ⚪ **P4** | **Modo Sobrevivência/Infinito** e **Treino Diário Personalizado** | Gamificação | Alto |
+
+### 13.3 Recomendação de Próxima Ação
+Começar pela **Sprint 4**: migrar o armazenamento para **Dexie.js** e persistir estatísticas **por nota**. Isso desbloqueia o **dashboard** (gráficos + heatmap) e o **algoritmo adaptativo**, que são os diferenciais que tornam o app "inteligente". Em paralelo, habilitar o **PWA** é uma melhoria rápida de alto valor (offline).
 
 ---
 *Plano gerado e estruturado para execução imediata no projeto MusicTrainer.*
