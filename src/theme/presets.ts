@@ -6,6 +6,7 @@
  */
 
 import type { CustomTheme, ThemePreset } from './types';
+import { UI_FONTS } from './types';
 
 export const PRESET_THEMES: Record<ThemePreset, CustomTheme> = {
   'everforest-dark': {
@@ -260,4 +261,8 @@ export const DEFAULT_THEME_CONFIG = {
   accent: 'auto',
   isCustom: false,
   useAccentText: false,
+  font: 'inter' as const,
 };
+
+/** Default font family fallback (used when a config has no font yet). */
+export const DEFAULT_UI_FONT: string = UI_FONTS.find((f) => f.id === 'inter')?.family ?? UI_FONTS[0].family;

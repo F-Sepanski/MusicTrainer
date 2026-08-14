@@ -7,7 +7,7 @@
 
 import { createContext, useContext, useEffect, useState, useCallback, useMemo, type ReactNode } from 'react';
 import { loadThemeConfig, saveThemeConfig } from '../storage/storage';
-import type { ThemeConfig, BaseMode, ThemePreset, CustomTheme } from './types';
+import type { ThemeConfig, BaseMode, ThemePreset, CustomTheme, UIFontId } from './types';
 import { applyTheme, resolveTheme, defaultThemeConfig } from './apply';
 
 interface ThemeContextValue {
@@ -23,6 +23,8 @@ interface ThemeContextValue {
   setAccent: (accent: string) => void;
   /** Toggle whether text-secondary follows the accent color */
   setUseAccentText: (useAccentText: boolean) => void;
+  /** Set the UI font */
+  setFont: (font: UIFontId) => void;
   /** Apply a named preset */
   applyPreset: (preset: ThemePreset) => void;
   /** Reset to defaults */
@@ -37,7 +39,7 @@ export function ThemeProvider({ children }: { children: ReactNode }) {
   const resolved = useMemo(() => resolveTheme(config), [config]);
 
   useEffect(() => {
-    applyTheme(resolved, config.useAccentText);
+    applyTheme(resolved, config.useAccentText, config.font);
     saveThemeConfig(config);
   }, [resolved, config]);
 
@@ -57,6 +59,10 @@ export function ThemeProvider({ children }: { children: ReactNode }) {
     setConfig((prev) => ({ ...prev, useAccentText }));
   }, []);
 
+  const setFont = useCallback((font: UIFontId) => {
+    setConfig((prev) => ({ ...prev, font }));
+  }, []);
+
   const applyPreset = useCallback((preset: ThemePreset) => {
     setConfig((prev) => ({ ...prev, preset }));
   }, []);
@@ -66,7 +72,7 @@ export function ThemeProvider({ children }: { children: ReactNode }) {
   }, []);
 
   return (
-    <ThemeContext.Provider value={{ config, resolved, toggleTheme, setMode, setAccent, setUseAccentText, applyPreset, resetTheme }}>
+    <ThemeContext.Provider value={{ config, resolved, toggleTheme, setMode, setAccent, setUseAccentText, setFont, applyPreset, resetTheme }}>
       {children}
     </ThemeContext.Provider>
   );

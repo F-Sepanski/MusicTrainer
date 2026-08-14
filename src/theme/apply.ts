@@ -5,8 +5,8 @@
  */
 
 import type { CustomTheme, ThemeConfig } from './types';
-import { ACCENT_AUTO } from './types';
-import { PRESET_THEMES, DEFAULT_THEME_CONFIG } from './presets';
+import { ACCENT_AUTO, UI_FONTS } from './types';
+import { PRESET_THEMES, DEFAULT_THEME_CONFIG, DEFAULT_UI_FONT } from './presets';
 
 /** Resolve a ThemeConfig into a concrete CustomTheme. */
 export function resolveTheme(config: ThemeConfig): CustomTheme {
@@ -37,11 +37,16 @@ function buildCustomTheme(config: ThemeConfig): CustomTheme {
 }
 
 /** Apply a CustomTheme to the document's CSS variables. */
-export function applyTheme(theme: CustomTheme, useAccentText = false): void {
+export function applyTheme(theme: CustomTheme, useAccentText = false, fontId?: string): void {
   const root = document.documentElement;
   root.classList.toggle('dark', theme.mode === 'dark');
 
   const s = root.style;
+
+  // UI font (resolved from the config, falling back to Inter)
+  const family = UI_FONTS.find((f) => f.id === fontId)?.family ?? DEFAULT_UI_FONT;
+  s.setProperty('--font-ui', family);
+  s.setProperty('--font-mono', UI_FONTS.find((f) => f.id === 'mono')!.family);
 
   // Accent (primary + with-opacity variants handled by color-mix in CSS)
   s.setProperty('--accent', theme.accent);

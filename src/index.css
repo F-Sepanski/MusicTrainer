@@ -29,6 +29,9 @@
     --success: #10b981;
     --error: #f43f5e;
     --warning: #fbbf24;
+    /* UI font family (overridden by applyTheme) */
+    --font-ui: 'Inter', system-ui, -apple-system, sans-serif;
+    --font-mono: 'JetBrains Mono', ui-monospace, SFMono-Regular, monospace;
   }
 
   .dark {
@@ -58,7 +61,7 @@
     color: var(--text-primary);
     -webkit-font-smoothing: antialiased;
     transition: background-color 0.3s ease, color 0.3s ease;
-    font-family: 'Inter', system-ui, -apple-system, sans-serif;
+    font-family: var(--font-ui);
   }
 
   /* Custom scrollbar */

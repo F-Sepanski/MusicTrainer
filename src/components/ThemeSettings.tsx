@@ -9,13 +9,13 @@
 import { Icon } from './Icon';
 import { useTheme } from '../theme/ThemeContext';
 import { PRESET_LIST, PRESET_NAMES, PRESET_THEMES } from '../theme/presets';
-import { ACCENT_AUTO } from '../theme/types';
+import { ACCENT_AUTO, UI_FONTS } from '../theme/types';
 import type { ThemePreset } from '../theme/types';
 
 const ACCENT_PRESETS = ['#00f2fe', '#10b981', '#8b5cf6', '#f43f5e', '#fbbf24', '#ef4444', '#22c55e', '#3b82f6', '#e879f9', '#f97316'];
 
 export function ThemeSettings() {
-  const { config, resolved, setAccent, setUseAccentText, applyPreset } = useTheme();
+  const { config, resolved, setAccent, setUseAccentText, applyPreset, setFont } = useTheme();
 
   const darkPresets = PRESET_LIST.filter((p) => PRESET_THEMES[p].mode === 'dark');
   const lightPresets = PRESET_LIST.filter((p) => PRESET_THEMES[p].mode === 'light');
@@ -87,6 +87,32 @@ export function ThemeSettings() {
               className="absolute inset-0 opacity-0 cursor-pointer"
             />
           </label>
+        </div>
+      </div>
+
+      {/* UI Font */}
+      <div>
+        <h4 className="text-sm font-semibold text-secondary mb-2 flex items-center gap-2">
+          <Icon name="keyboard" size={14} /> Fonte da interface
+        </h4>
+        <div className="grid grid-cols-2 gap-2">
+          {UI_FONTS.map((font) => {
+            const isActive = (config.font ?? 'inter') === font.id;
+            return (
+              <button
+                key={font.id}
+                onClick={() => setFont(font.id)}
+                className={`p-3 rounded-xl text-left transition-all border ${
+                  isActive ? 'accent-soft-bg accent-border' : 'bg-surface-700 border-surface hover:border-adaptive'
+                }`}
+              >
+                <span className="block text-xl font-semibold leading-none text-primary" style={{ fontFamily: font.family }}>
+                  {font.preview}
+                </span>
+                <span className="block text-xs text-muted mt-1.5">{font.name}</span>
+              </button>
+            );
+          })}
         </div>
       </div>
 

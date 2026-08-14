@@ -66,4 +66,30 @@ export interface ThemeConfig {
    * (changes together with accent / uses the accent of the chosen theme).
    */
   useAccentText: boolean;
+  /** UI font id (see UI_FONTS) */
+  font: UIFontId;
 }
+
+/** Available UI font identifiers. */
+export type UIFontId = 'inter' | 'system' | 'space' | 'poppins' | 'nunito' | 'serif' | 'mono';
+
+/** A selectable UI font option. */
+export interface FontOption {
+  id: UIFontId;
+  name: string;
+  /** CSS font-family stack applied via --font-ui. */
+  family: string;
+  /** A preview snippet rendered in the picker. */
+  preview: string;
+}
+
+/** Curated UI fonts bundled via Google Fonts in index.html. */
+export const UI_FONTS: FontOption[] = [
+  { id: 'inter', name: 'Inter', family: "'Inter', system-ui, -apple-system, sans-serif", preview: 'Aa' },
+  { id: 'system', name: 'Sistema', family: "system-ui, -apple-system, 'Segoe UI', sans-serif", preview: 'Aa' },
+  { id: 'space', name: 'Space Grotesk', family: "'Space Grotesk', system-ui, sans-serif", preview: 'Aa' },
+  { id: 'poppins', name: 'Poppins', family: "'Poppins', system-ui, sans-serif", preview: 'Aa' },
+  { id: 'nunito', name: 'Nunito', family: "'Nunito', system-ui, sans-serif", preview: 'Aa' },
+  { id: 'serif', name: 'Serifada', family: "'Playfair Display', Georgia, serif", preview: 'Aa' },
+  { id: 'mono', name: 'Monospace', family: "'JetBrains Mono', ui-monospace, monospace", preview: 'Aa' },
+];
