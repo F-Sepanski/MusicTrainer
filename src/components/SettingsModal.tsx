@@ -9,7 +9,7 @@
 import { useState } from 'react';
 import { Modal, Slider, Button } from './ui';
 import { Icon, type IconName } from './Icon';
-import type { WizardConfig, Level, InputMode, ManualType, InstrumentType } from '../types/wizard';
+import type { WizardConfig, InputMode, ManualType, InstrumentType } from '../types/wizard';
 
 interface Props {
   open: boolean;
@@ -29,14 +29,6 @@ const INSTRUMENTS: { type: InstrumentType; label: string; icon: IconName }[] = [
   { type: 'trumpet', label: 'Trompete', icon: 'trumpet' },
   { type: 'voice', label: 'Voz', icon: 'voice' },
   { type: 'other', label: 'Outro', icon: 'other' },
-];
-
-const LEVELS: { level: Level; label: string }[] = [
-  { level: 'beginner', label: 'Iniciante' },
-  { level: 'learner', label: 'Aprendiz' },
-  { level: 'intermediate', label: 'Intermediário' },
-  { level: 'experienced', label: 'Experiente' },
-  { level: 'professional', label: 'Profissional' },
 ];
 
 const MANUAL_TYPES: { type: ManualType; label: string; icon: IconName }[] = [
@@ -112,28 +104,6 @@ export function SettingsModal({ open, onClose, config, onSave, onRunWizard }: Pr
           </div>
         </div>
 
-        {/* Nível */}
-        <div>
-          <h4 className="text-sm font-semibold text-secondary mb-2 flex items-center gap-2">
-            <Icon name="target" size={14} /> Nível
-          </h4>
-          <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
-            {LEVELS.map((lvl) => (
-              <button
-                key={lvl.level}
-                onClick={() => set({ level: lvl.level })}
-                className={`py-2 rounded-xl text-xs font-medium transition-all ${
-                  draft.level === lvl.level
-                    ? 'bg-accent-soft border border-accent-soft text-neon-cyan'
-                    : 'bg-surface-700 border border-surface text-secondary hover:border-adaptive'
-                }`}
-              >
-                {lvl.label}
-              </button>
-            ))}
-          </div>
-        </div>
-
         {/* Entrada */}
         <div>
           <h4 className="text-sm font-semibold text-secondary mb-2 flex items-center gap-2">
@@ -179,21 +149,6 @@ export function SettingsModal({ open, onClose, config, onSave, onRunWizard }: Pr
               ))}
             </div>
           )}
-        </div>
-
-        {/* Notas por exercício */}
-        <div>
-          <Slider
-            label="Notas por exercício"
-            value={draft.noteCount ?? 12}
-            onChange={(v) => set({ noteCount: v })}
-            min={4}
-            max={40}
-            step={1}
-            accent="cyan"
-            leftHint="4 (curto)" rightHint="40 (longo)"
-            format={(v) => `${v} notas`}
-          />
         </div>
 
         {/* Parâmetros de microfone */}

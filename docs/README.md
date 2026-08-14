@@ -13,7 +13,8 @@ A documentação está dividida nos seguintes módulos temáticos:
 | [**ARCHITECTURE.md**](./ARCHITECTURE.md) | Visão detalhada da arquitetura de software, camadas, fluxo de dados e ciclo de vida do treinamento. |
 | [**GUIDELINES.md**](./GUIDELINES.md) | Guia de diretrizes de código, padrões de design visual, tipografia musical (SMuFL) e boas práticas de expansão. |
 | [**INPUT_MODES.md**](./INPUT_MODES.md) | Especificação completa dos modos de entrada: Microfone (Pitch Tracking), Piano (D3–B6), Violão (20 casas), Círculo de Notas e Digitação com HUD. |
-| [**CURRICULUM_AND_EXERCISES.md**](./CURRICULUM_AND_EXERCISES.md) | Estrutura pedagógica, capítulos, gerador procedural de notas e como estender o currículo musical. |
+| [**CURRICULUM.md**](./CURRICULUM.md) | **Especificação completa do currículo atual** — 3 Cursos, capítulos, níveis, notas e armaduras. |
+| [**CURRICULUM_AND_EXERCISES.md**](./CURRICULUM_AND_EXERCISES.md) | Modelagem pedagógica, gerador procedural de notas e guia de extensão do currículo. |
 | [**DEVELOPER_GUIDE.md**](./DEVELOPER_GUIDE.md) | Guia para desenvolvedores: instalação, comandos de compilação, criação de novos temas e adição de suporte WebMIDI. |
 
 ---

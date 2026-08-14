@@ -10,34 +10,25 @@
 import { useState, useEffect, useRef, useCallback, useMemo } from 'react';
 import { audioEngine, type PitchCallback } from '../audio/AudioEngine';
 import { SheetMusicDisplay } from './SheetMusicDisplay';
-import { Icon } from './Icon';
+import { Icon, type IconName } from './Icon';
 import { Button, Card, AnimatedSection, StatCard } from './ui';
 import { AppLayout } from './AppLayout';
 import { SettingsModal } from './SettingsModal';
 import { useTheme } from '../theme/ThemeContext';
-import { appendHistory } from '../storage/storage';
+import { appendHistory, markExercisePassed, saveLastExercise, loadLastExercise, loadProgress, DIFFICULTY_RANK } from '../storage/storage';
 import { generateExercise, resetNoteIdCounter, configFromExercise } from '../exercise/generator';
-import { buildCurriculum } from '../exercise/curriculum';
+import { buildCurriculum, getMaxUnlockedChapter, DIFFICULTY_NOTE_COUNT, DIFFICULTY_TIME_LIMIT_MS, DIFFICULTY_LABELS, PASS_ACCURACY } from '../exercise/curriculum';
 import { AdaptedInstrumentInput, NoteLabelDisplay } from './inputs';
 import { parseNoteToMidi } from '../audio/noteFrequencies';
 import type { ExerciseNote, PitchData, AppPhase, SessionResult } from '../types';
 import type { WizardConfig } from '../types/wizard';
-import type { InputMode, Chapter, ChapterExercise } from '../exercise/curriculum';
+import type { InputMode, Chapter, ChapterExercise, Difficulty, Course, Clef } from '../exercise/curriculum';
 
 interface Props {
   wizardConfig: WizardConfig;
   onExit: () => void;
   onUpdateConfig?: (config: WizardConfig) => void;
 }
-
-/** Max chapter index unlocked per level. */
-const LEVEL_UNLOCK: Record<string, number> = {
-  beginner: 3,
-  learner: 5,
-  intermediate: 7,
-  experienced: 8,
-  professional: 8,
-};
 
 function getNoteDisplayName(
   letter: string,
@@ -59,36 +50,110 @@ function getNoteDisplayName(
   return `${base}${acc}${octave}`;
 }
 
+/** Tailwind text colors for each difficulty completion level. */
+const DIFFICULTY_TEXT: Record<'easy' | 'medium' | 'hard', string> = {
+  easy: 'text-neon-emerald',
+  medium: 'text-neon-amber',
+  hard: 'text-neon-rose',
+};
+
+/** Tailwind bg (soft) colors for each difficulty completion level. */
+const DIFFICULTY_BG: Record<'easy' | 'medium' | 'hard', string> = {
+  easy: 'bg-neon-emerald/15',
+  medium: 'bg-neon-amber/15',
+  hard: 'bg-neon-rose/15',
+};
+
+/** Return the highest difficulty passed across a set of exercises, or null. */
+function maxChapterDifficulty(
+  progress: Record<string, 'easy' | 'medium' | 'hard'>,
+  exerciseIds: string[]
+): 'easy' | 'medium' | 'hard' | null {
+  let maxRank = -1;
+  let maxDiff: 'easy' | 'medium' | 'hard' | null = null;
+  for (const id of exerciseIds) {
+    const d = progress[id];
+    if (d) {
+      const rank = DIFFICULTY_RANK.indexOf(d);
+      if (rank > maxRank) {
+        maxRank = rank;
+        maxDiff = d;
+      }
+    }
+  }
+  return maxDiff;
+}
+
 export function ChapterTrainingScreen({ wizardConfig, onExit, onUpdateConfig }: Props) {
   const { config: themeConfig } = useTheme();
   const theme = themeConfig.mode;
   const [showSettings, setShowSettings] = useState(false);
 
   // Dynamic curriculum that respects the user's notation system
-  const curriculum = useMemo(
+  const courses = useMemo(
     () => buildCurriculum(wizardConfig.notationSystem ?? 'letters'),
     [wizardConfig.notationSystem]
   );
 
-  // Chapter list gated by the user's level
-  const maxUnlock = LEVEL_UNLOCK[wizardConfig.level] ?? 8;
-  const unlocked = useMemo(
-    () => curriculum.filter((c) => c.index <= maxUnlock),
-    [curriculum, maxUnlock]
+  // Flatten all chapters across courses for selection/restore.
+  const allChapters = useMemo(
+    () => courses.flatMap((c) => c.chapters),
+    [courses]
   );
 
-  const [chapter, setChapter] = useState<Chapter>(unlocked[0]);
-  const [selectedExercise, setSelectedExercise] = useState<ChapterExercise>(unlocked[0].exercises[0]);
+  const [courseIndex, setCourseIndex] = useState(0);
+  const course = courses[courseIndex] ?? courses[0];
+
+  // Restore the last trained exercise (from home screen) and completion state.
+  const [progress, setProgress] = useState<Record<string, 'easy' | 'medium' | 'hard'>>(() => loadProgress());
+
+  // Dynamic maxUnlocked chapter for current course:
+  // Completing the last exercise of chapter k unlocks up to chapter k + 2.
+  const maxUnlock = useMemo(
+    () => (course ? getMaxUnlockedChapter(course, progress, wizardConfig.level) : 2),
+    [course, progress, wizardConfig.level]
+  );
+
+  // First unlocked chapter in the selected course.
+  const initialChapter = useMemo(() => {
+    const ch = (course?.chapters ?? []).find((c) => c.index <= maxUnlock);
+    return ch ?? course?.chapters[0] ?? allChapters[0];
+  }, [course, maxUnlock, allChapters]);
+
+  const [chapter, setChapter] = useState<Chapter>(initialChapter);
+  const [selectedExercise, setSelectedExercise] = useState<ChapterExercise>(initialChapter?.exercises[0]);
+  const [difficulty, setDifficulty] = useState<Difficulty>('easy');
+
+  useEffect(() => {
+    const last = loadLastExercise();
+    if (last) {
+      const lastCh = allChapters.find((c) => c.id === last.chapterId);
+      if (lastCh) {
+        const lastEx = lastCh.exercises.find((e) => e.id === last.exerciseId) ?? lastCh.exercises[0];
+        const ci = courses.findIndex((c) => c.chapters.some((ch) => ch.id === lastCh.id));
+        if (ci >= 0) setCourseIndex(ci);
+        setChapter(lastCh);
+        setSelectedExercise(lastEx);
+        if (last.difficulty) setDifficulty(last.difficulty);
+      }
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [allChapters, courses]);
 
   // Keep chapter and selected exercise synced when notation changes
   useEffect(() => {
-    const currentCh = unlocked.find((c) => c.id === chapter.id) ?? unlocked[0];
+    if (!chapter) {
+      setChapter(initialChapter);
+      setSelectedExercise(initialChapter?.exercises[0]);
+      return;
+    }
+    const currentCh = allChapters.find((c) => c.id === chapter.id) ?? initialChapter;
     if (currentCh) {
       setChapter(currentCh);
-      const currentEx = currentCh.exercises.find((e) => e.id === selectedExercise.id) ?? currentCh.exercises[0];
+      const currentEx = currentCh.exercises.find((e) => e.id === selectedExercise?.id) ?? currentCh.exercises[0];
       if (currentEx) setSelectedExercise(currentEx);
     }
-  }, [curriculum, unlocked]);
+  }, [courses, allChapters, initialChapter, chapter, selectedExercise]);
 
   // Input mode comes from the wizard config
   const [inputMode, setInputMode] = useState<InputMode>(wizardConfig.inputMode);
@@ -111,6 +176,7 @@ export function ChapterTrainingScreen({ wizardConfig, onExit, onUpdateConfig }: 
   const currentNoteIndexRef = useRef(currentNoteIndex);
   const chapterRef = useRef(chapter);
   const exerciseRef = useRef(selectedExercise);
+  const difficultyRef = useRef<Difficulty>(difficulty);
   const inputModeRef = useRef(inputMode);
   const wizardRef = useRef(wizardConfig);
   const finishRef = useRef(finishExercise);
@@ -120,6 +186,7 @@ export function ChapterTrainingScreen({ wizardConfig, onExit, onUpdateConfig }: 
   useEffect(() => { currentNoteIndexRef.current = currentNoteIndex; }, [currentNoteIndex]);
   useEffect(() => { chapterRef.current = chapter; }, [chapter]);
   useEffect(() => { exerciseRef.current = selectedExercise; }, [selectedExercise]);
+  useEffect(() => { difficultyRef.current = difficulty; }, [difficulty]);
   useEffect(() => { inputModeRef.current = inputMode; }, [inputMode]);
   useEffect(() => { wizardRef.current = wizardConfig; }, [wizardConfig]);
   useEffect(() => { finishRef.current = finishExercise; }, []);
@@ -141,20 +208,37 @@ export function ChapterTrainingScreen({ wizardConfig, onExit, onUpdateConfig }: 
       ? centsOffsetsRef.current.reduce((a, b) => a + b, 0) / centsOffsetsRef.current.length
       : 0;
 
+    const accuracy = currentNotes.length > 0 ? Math.round((correctNotes / currentNotes.length) * 100) : 0;
+    const difficulty = difficultyRef.current;
+    const timeLimit = DIFFICULTY_TIME_LIMIT_MS[difficulty];
+    const passThreshold = PASS_ACCURACY[difficulty];
+    const passed = accuracy >= passThreshold && avgTime <= timeLimit;
+
     const res: SessionResult = {
       totalNotes: currentNotes.length,
       correctNotes,
       averageResponseTimeMs: Math.round(avgTime),
       averageCentsOffset: Math.round(avgCents * 10) / 10,
-      accuracy: Math.round((correctNotes / currentNotes.length) * 100),
+      accuracy,
+      difficulty,
+      passed,
     };
+
+    // Remember the last trained exercise for the home screen.
+    saveLastExercise({ chapterId: ch.id, exerciseId: exerciseRef.current.id, difficulty });
 
     appendHistory({
       ...res,
       levelName: `${ch.title} - ${exerciseRef.current.title}`,
-      clef: exerciseRef.current.clef ?? (ch.range.min < 55 ? 'bass' : 'treble'),
+      clef: exerciseRef.current.clef === 'grand' ? 'treble' : exerciseRef.current.clef,
       instrument: wizardRef.current.instrument,
     });
+
+    // Only persist completion when the user passed the test.
+    if (passed) {
+      markExercisePassed(exerciseRef.current.id, difficulty);
+      setProgress(loadProgress());
+    }
 
     setResult(res);
     setPhase('results');
@@ -239,7 +323,8 @@ export function ChapterTrainingScreen({ wizardConfig, onExit, onUpdateConfig }: 
   // ─── Start training session ──────────────────────────────
   const handleStart = useCallback(async () => {
     resetNoteIdCounter();
-    const config = configFromExercise(chapter, selectedExercise, { noteCount: wizardConfig.noteCount ?? 12 });
+    const noteCount = DIFFICULTY_NOTE_COUNT[difficultyRef.current] ?? 32;
+    const config = configFromExercise(selectedExercise, { noteCount });
     const generatedNotes = generateExercise(config);
     setNotes(generatedNotes);
     setCurrentNoteIndex(0);
@@ -453,13 +538,18 @@ export function ChapterTrainingScreen({ wizardConfig, onExit, onUpdateConfig }: 
   const currentNote = notes[currentNoteIndex];
   const targetMidi = currentNote?.midiNote ?? 0;
   const correctCount = notes.filter((n) => n.status === 'correct').length;
+  const answeredCount = notes.filter((n) => n.status === 'correct' || n.status === 'incorrect').length;
+  const liveAccuracy = answeredCount > 0 ? Math.round((correctCount / answeredCount) * 100) : 100;
+  const liveAvgTimeMs = reactionTimesRef.current.length > 0
+    ? Math.round(reactionTimesRef.current.reduce((a, b) => a + b, 0) / reactionTimesRef.current.length)
+    : 0;
 
   const currentExerciseRange = selectedExercise?.range ?? chapter.range;
 
   return (
     <AppLayout
-      title="Treino por Capítulos"
-      subtitle={`${chapter.title} · ${selectedExercise.title}`}
+      title={course ? course.subtitle : 'Treino'}
+      subtitle={chapter && selectedExercise ? `${chapter.title} · ${selectedExercise.title}` : undefined}
       onBack={onExit}
       headerAction={
         <div className="flex gap-2 items-center">
@@ -486,18 +576,54 @@ export function ChapterTrainingScreen({ wizardConfig, onExit, onUpdateConfig }: 
       }
     >
       <div className="max-w-4xl mx-auto flex flex-col items-center gap-6">
-        {/* SETUP PHASE: Chapter & Exercise Selectors */}
+        {/* SETUP PHASE: Course, Chapter & Level Selectors */}
         {phase === 'setup' && (
           <AnimatedSection type="fade" className="w-full flex flex-col gap-6">
+            {/* Course Tabs */}
+            <div className="w-full">
+              <h3 className="text-sm font-semibold text-secondary mb-3 flex items-center gap-2">
+                <Icon name="clef" size={16} /> Curso
+              </h3>
+              <div className="grid grid-cols-1 sm:grid-cols-3 gap-2">
+                {courses.map((crs, ci) => {
+                  const isSelected = ci === courseIndex;
+                  return (
+                    <button
+                      key={crs.id}
+                      onClick={() => {
+                        setCourseIndex(ci);
+                        const ch = crs.chapters.find((c) => c.index <= maxUnlock) ?? crs.chapters[0];
+                        setChapter(ch);
+                        setSelectedExercise(ch?.exercises[0]);
+                      }}
+                      className={`p-4 rounded-2xl text-left transition-all border ${
+                        isSelected
+                          ? 'bg-accent-soft border-accent-soft shadow-lg shadow-neon-cyan/10'
+                          : 'bg-surface-800 border-surface text-secondary hover:border-adaptive'
+                      }`}
+                    >
+                      <div className="flex items-center gap-2">
+                        <Icon name={crs.icon as IconName} size={16} className="text-neon-purple" />
+                        <div className="text-sm font-bold">{crs.subtitle}</div>
+                      </div>
+                    </button>
+                  );
+                })}
+              </div>
+            </div>
+
             {/* Chapter Selection Bar */}
             <div className="w-full">
               <h3 className="text-sm font-semibold text-secondary mb-3 flex items-center gap-2">
                 <Icon name="music" size={16} /> Selecione o Capítulo
               </h3>
-              <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-6 gap-2">
-                {curriculum.map((ch) => {
+              <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-2">
+                {(course?.chapters ?? []).map((ch) => {
                   const isLocked = ch.index > maxUnlock;
-                  const isSelected = ch.id === chapter.id;
+                  const isSelected = ch.id === chapter?.id;
+                  const lastEx = ch.exercises[ch.exercises.length - 1];
+                  const chapterDiff = lastEx ? progress[lastEx.id] : null;
+                  const hasProgress = chapterDiff ? true : ch.exercises.some((ex) => progress[ex.id]);
 
                   return (
                     <button
@@ -507,7 +633,7 @@ export function ChapterTrainingScreen({ wizardConfig, onExit, onUpdateConfig }: 
                         setChapter(ch);
                         setSelectedExercise(ch.exercises[0]);
                       }}
-                      className={`p-3 rounded-2xl flex flex-col items-center text-center transition-all ${
+                      className={`p-3 rounded-2xl flex flex-col items-center justify-center text-center transition-all ${
                         isSelected
                           ? 'bg-accent-soft border-2 border-accent-soft text-neon-cyan shadow-lg shadow-neon-cyan/10'
                           : isLocked
@@ -515,7 +641,17 @@ export function ChapterTrainingScreen({ wizardConfig, onExit, onUpdateConfig }: 
                           : 'bg-surface-800 border border-surface text-secondary hover:border-adaptive hover:text-primary'
                       }`}
                     >
-                      <div className="text-xs font-bold mb-1">Cap. {ch.index}</div>
+                      {(chapterDiff || isLocked || hasProgress) && (
+                        <div className="flex items-center gap-1 mb-1">
+                          {chapterDiff ? (
+                            <span className={`w-2 h-2 rounded-full ${DIFFICULTY_BG[chapterDiff]} ${DIFFICULTY_TEXT[chapterDiff]} border border-current`} />
+                          ) : isLocked ? (
+                            <Icon name="lock" size={11} className="text-muted" />
+                          ) : (
+                            <span className="w-2 h-2 rounded-full bg-surface-600 border border-surface" />
+                          )}
+                        </div>
+                      )}
                       <div className="text-[11px] font-medium leading-tight truncate w-full">
                         {ch.title}
                       </div>
@@ -525,14 +661,16 @@ export function ChapterTrainingScreen({ wizardConfig, onExit, onUpdateConfig }: 
               </div>
             </div>
 
-            {/* Exercise Selection Grid */}
+            {/* Level (Exercise) Selection Grid */}
             <div className="w-full">
               <h3 className="text-sm font-semibold text-secondary mb-3 flex items-center gap-2">
-                <Icon name="target" size={16} /> Exercício do Capítulo
+                <Icon name="target" size={16} /> Nível do Capítulo
               </h3>
               <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-3">
-                {chapter.exercises.map((ex) => {
-                  const isSelected = ex.id === selectedExercise.id;
+                {(chapter?.exercises ?? []).map((ex) => {
+                  const isSelected = ex.id === selectedExercise?.id;
+                  const completed = progress[ex.id]; // highest difficulty passed, if any
+                  const maxRank = completed ? DIFFICULTY_RANK.indexOf(completed) : -1;
                   return (
                     <button
                       key={ex.id}
@@ -543,11 +681,66 @@ export function ChapterTrainingScreen({ wizardConfig, onExit, onUpdateConfig }: 
                           : 'bg-surface-800 border border-surface text-secondary hover:border-adaptive hover:text-primary'
                       }`}
                     >
-                      <div className="text-xs font-bold mb-1 text-neon-purple">
-                        {ex.title}
+                      <div className="flex items-center justify-between mb-1">
+                        <div className="text-xs font-bold text-neon-purple">
+                          {ex.title}
+                        </div>
+                        {/* 3 circles indicating highest difficulty completed */}
+                        <div className="flex items-center gap-1 shrink-0 ml-2" title={`Máx.: ${completed ? DIFFICULTY_LABELS[completed] : 'nenhuma'}`}>
+                          {DIFFICULTY_RANK.map((d, idx) => (
+                            <span
+                              key={d}
+                              className={`w-2.5 h-2.5 rounded-full border ${
+                                idx <= maxRank
+                                  ? `${DIFFICULTY_BG[d]} ${DIFFICULTY_TEXT[d]} border-current`
+                                  : 'bg-surface-700 border-surface'
+                              }`}
+                            />
+                          ))}
+                        </div>
                       </div>
                       <div className="text-xs text-muted leading-snug">
                         {ex.description}
+                      </div>
+                    </button>
+                  );
+                })}
+              </div>
+            </div>
+
+            {/* Difficulty Selector */}
+            <div className="w-full">
+              <h3 className="text-sm font-semibold text-secondary mb-3 flex items-center gap-2">
+                <Icon name="chart" size={16} /> Dificuldade do Teste
+              </h3>
+              <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+                {(Object.keys(DIFFICULTY_LABELS) as Difficulty[]).map((d) => {
+                  const isSelected = d === difficulty;
+                  const diffColors: Record<Difficulty, string> = {
+                    easy: 'text-neon-emerald',
+                    medium: 'text-neon-amber',
+                    hard: 'text-neon-rose',
+                  };
+                  return (
+                    <button
+                      key={d}
+                      onClick={() => setDifficulty(d)}
+                      className={`p-4 rounded-2xl text-left transition-all border ${
+                        isSelected
+                          ? 'bg-accent-soft border-accent-soft shadow-lg shadow-neon-cyan/10'
+                          : 'bg-surface-800 border-surface text-secondary hover:border-adaptive'
+                      }`}
+                    >
+                      <div className="flex items-center justify-between mb-1">
+                        <span className={`text-sm font-bold ${diffColors[d]}`}>
+                          {DIFFICULTY_LABELS[d]}
+                        </span>
+                        <span className={`text-xs font-bold ${diffColors[d]}`}>
+                          {PASS_ACCURACY[d]}%
+                        </span>
+                      </div>
+                      <div className="text-xs text-muted">
+                        {DIFFICULTY_NOTE_COUNT[d]} notas · máx {DIFFICULTY_TIME_LIMIT_MS[d] / 1000}s/nota
                       </div>
                     </button>
                   );
@@ -573,12 +766,19 @@ export function ChapterTrainingScreen({ wizardConfig, onExit, onUpdateConfig }: 
                 <span>
                   Nota {Math.min(currentNoteIndex + 1, notes.length)} de {notes.length}
                 </span>
-                <span>{Math.round((correctCount / Math.max(notes.length, 1)) * 100)}% de Precisão</span>
+                <div className="flex items-center gap-2.5">
+                  <span className="flex items-center gap-1 text-neon-cyan">
+                    <Icon name="clock" size={12} />
+                    <span>{liveAvgTimeMs > 0 ? `${liveAvgTimeMs}ms` : '—'}</span>
+                  </span>
+                  <span className="text-surface-500">·</span>
+                  <span>{liveAccuracy}% Precisão</span>
+                </div>
               </div>
               <div className="w-full h-2 bg-surface-700 rounded-full overflow-hidden">
                 <div
                   className="h-full bg-gradient-to-r from-neon-cyan to-neon-emerald rounded-full transition-all duration-300"
-                  style={{ width: `${(correctCount / Math.max(notes.length, 1)) * 100}%` }}
+                  style={{ width: `${(answeredCount / Math.max(notes.length, 1)) * 100}%` }}
                 />
               </div>
             </div>
@@ -588,10 +788,10 @@ export function ChapterTrainingScreen({ wizardConfig, onExit, onUpdateConfig }: 
               <SheetMusicDisplay
                 notes={notes}
                 activeIndex={currentNoteIndex}
-                clef={selectedExercise?.clef ?? (chapter.range.min < 55 ? 'bass' : 'treble')}
-                height={200}
+                clef={selectedExercise?.clef ?? 'treble'}
+                height={selectedExercise?.clef === 'grand' ? 300 : 200}
                 theme={theme}
-                keyFifths={selectedExercise?.keyFifths ?? chapter.keySignature.fifths}
+                keyFifths={selectedExercise?.keyFifths ?? 0}
                 notation={wizardConfig.notationSystem ?? 'letters'}
                 octaveShift={effectiveOctaveShift}
               />
@@ -625,15 +825,30 @@ export function ChapterTrainingScreen({ wizardConfig, onExit, onUpdateConfig }: 
             {phase === 'results' && result && (
               <AnimatedSection type="slide-up" className="w-full max-w-md">
                 <Card className="p-8 text-center">
-                  <div className="flex justify-center mb-3 text-neon-emerald animate-scale-in">
-                    <Icon name="check" size={40} />
-                  </div>
-                  <h2 className="text-2xl font-bold mb-5 text-neon-emerald">Capítulo Concluído!</h2>
+                  {result.passed ? (
+                    <>
+                      <div className="flex justify-center mb-3 text-neon-emerald animate-scale-in">
+                        <Icon name="check" size={40} />
+                      </div>
+                      <h2 className="text-2xl font-bold mb-1 text-neon-emerald">Teste Aprovado!</h2>
+                      <p className="text-sm text-secondary mb-5">Você passou nesta dificuldade 🎉</p>
+                    </>
+                  ) : (
+                    <>
+                      <div className="flex justify-center mb-3 text-neon-rose animate-scale-in">
+                        <Icon name="repeat" size={40} />
+                      </div>
+                      <h2 className="text-2xl font-bold mb-1 text-neon-rose">Quase lá!</h2>
+                      <p className="text-sm text-secondary mb-5">
+                        Precisa de {PASS_ACCURACY[result.difficulty]}% de acertos e tempo médio ≤ {DIFFICULTY_TIME_LIMIT_MS[result.difficulty] / 1000}s/nota.
+                      </p>
+                    </>
+                  )}
                   <div className="grid grid-cols-2 gap-4 mb-6">
                     <StatCard label="Precisão" value={`${result.accuracy}%`} color="text-neon-cyan" />
                     <StatCard label="Tempo Médio" value={`${result.averageResponseTimeMs}ms`} color="text-neon-purple" />
                     <StatCard label="Acertos" value={`${result.correctNotes} / ${result.totalNotes}`} color="text-neon-emerald" />
-                    <StatCard label="Desvio Médio" value={`${result.averageCentsOffset} ¢`} color="text-secondary" />
+                    <StatCard label="Dificuldade" value={DIFFICULTY_LABELS[result.difficulty]} color="text-secondary" />
                   </div>
                   <div className="flex gap-3 justify-center">
                     <Button onClick={handleStart}>Repetir Exercício</Button>

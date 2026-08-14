@@ -71,7 +71,6 @@ export function SetupWizard({ onComplete, onCancel, initialConfig }: Props) {
     level: initialConfig?.level ?? 'beginner',
     inputMode: initialConfig?.inputMode ?? 'mic',
     manualType: initialConfig?.manualType ?? 'piano',
-    noteCount: initialConfig?.noteCount ?? 12,
     notationSystem: initialConfig?.notationSystem ?? 'letters',
   });
   const [step, setStep] = useState(0);

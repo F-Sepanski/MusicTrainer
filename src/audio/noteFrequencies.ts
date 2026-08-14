@@ -91,9 +91,9 @@ export function parseNoteToPitchClass(input: string): number | null {
   return ((midi % 12) + 12) % 12;
 }
 
-/** Get the VexFlow key string from MIDI number (e.g. 60 → "c/4", 61 → "db/4"). */
-export function midiToVexFlowKey(midi: number): string {
-  const name = midiToNoteName(midi, 'letters', false);
+/** Get the VexFlow key string from MIDI number (e.g. 60 → "c/4", 61 → "c#/4" or "db/4"). */
+export function midiToVexFlowKey(midi: number, useSharps = false): string {
+  const name = midiToNoteName(midi, 'letters', useSharps);
   const noteLetter = name.slice(0, -1).toLowerCase();
   const octave = name.slice(-1);
   return `${noteLetter}/${octave}`;

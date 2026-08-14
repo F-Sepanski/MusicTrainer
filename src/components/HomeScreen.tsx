@@ -12,9 +12,9 @@ import { AppLayout } from './AppLayout';
 import { ThemeSettings } from './ThemeSettings';
 import { SettingsModal } from './SettingsModal';
 import { useTheme } from '../theme/ThemeContext';
-import { buildCurriculum } from '../exercise/curriculum';
+import { buildCurriculum, getMaxUnlockedChapter } from '../exercise/curriculum';
+import { loadLastExercise, loadProgress, type HistoryEntry } from '../storage/storage';
 import type { WizardConfig } from '../types/wizard';
-import type { HistoryEntry } from '../storage/storage';
 
 interface Props {
   config: WizardConfig | null;
@@ -28,6 +28,7 @@ interface Props {
 const INSTRUMENT_ICONS: Record<string, IconName> = {
   piano: 'piano',
   guitar: 'guitar',
+  bass: 'guitar',
   violin: 'violin',
   flute: 'flute',
   saxophone: 'sax',
@@ -45,18 +46,10 @@ const LEVEL_LABELS: Record<string, string> = {
 };
 
 const MANUAL_LABELS: Record<string, string> = {
-  guitar: 'Violão',
-  piano: 'Piano',
+  virtual_piano: 'Teclado Virtual',
+  buttons: 'Botões',
+  midi: 'Teclado MIDI',
   circle: 'Círculo de Notas',
-};
-
-/** Max chapter index unlocked per level (mirrors ChapterTrainingScreen). */
-const LEVEL_UNLOCK: Record<string, number> = {
-  beginner: 3,
-  learner: 5,
-  intermediate: 7,
-  experienced: 8,
-  professional: 8,
 };
 
 /** Number of consecutive days (ending today or yesterday) with a session. */
@@ -86,16 +79,33 @@ function computeStreak(history: HistoryEntry[]): number {
 export function HomeScreen({ config, history, onStartTraining, onRunWizard, onViewHistory, onUpdateConfig }: Props) {
   const [showTheme, setShowTheme] = useState(false);
   const [showSettings, setShowSettings] = useState(false);
+  const progress = useMemo(() => loadProgress(), []);
 
-  // Current chapter / exercise shown in the hero (first unlocked chapter).
+  // Current chapter / exercise shown in the hero (first unlocked chapter,
+  // or the last exercise the user was training).
   const currentChapter = useMemo(() => {
     if (!config) return null;
-    const maxUnlock = LEVEL_UNLOCK[config.level] ?? 8;
-    const curriculum = buildCurriculum(config.notationSystem ?? 'letters');
-    return curriculum.find((c) => c.index <= maxUnlock) ?? null;
-  }, [config]);
+    const courses = buildCurriculum(config.notationSystem ?? 'letters');
+    const unlockedChapters = courses.flatMap((c) => {
+      const maxU = getMaxUnlockedChapter(c, progress, config.level);
+      return c.chapters.filter((ch) => ch.index <= maxU);
+    });
+    const last = loadLastExercise();
+    const lastCh = last ? unlockedChapters.find((c) => c.id === last.chapterId) : undefined;
+    return lastCh ?? unlockedChapters[0] ?? null;
+  }, [config, progress]);
 
-  const currentExercise = currentChapter?.exercises[0] ?? null;
+  const currentExercise = useMemo(() => {
+    if (!currentChapter) return null;
+    const last = loadLastExercise();
+    if (last && last.chapterId === currentChapter.id) {
+      const ex = currentChapter.exercises.find((e) => e.id === last.exerciseId);
+      if (ex) return ex;
+    }
+    return currentChapter.exercises[0] ?? null;
+  }, [currentChapter]);
+
+  const lastSession = history[0];
 
   const stats = useMemo(() => {
     if (history.length === 0) {
@@ -122,8 +132,6 @@ export function HomeScreen({ config, history, onStartTraining, onRunWizard, onVi
     if (config.inputMode === 'mic') return `Microfone (${config.toleranceCents} cents)`;
     return MANUAL_LABELS[config.manualType] ?? 'Entrada manual';
   }, [config]);
-
-  const lastSession = history[0];
 
   return (
     <AppLayout
@@ -185,14 +193,19 @@ export function HomeScreen({ config, history, onStartTraining, onRunWizard, onVi
                     <div className="min-w-0">
                       <div className="flex items-center gap-2 text-xs font-semibold text-secondary uppercase tracking-wide">
                         <Icon name="music" size={13} className="text-neon-purple" />
-                        {currentChapter ? `Capítulo ${currentChapter.index}: ${currentChapter.title}` : 'Treinamento'}
+                        {currentChapter ? `${currentChapter.title}` : 'Treinamento'}
                       </div>
                       <h1 className="text-2xl sm:text-3xl font-bold mt-1 leading-tight">
-                        {currentExercise ? `Exercício 1: ${currentExercise.title}` : `Treinar ${instrumentLabel}`}
+                        {currentExercise ? `${currentExercise.title}` : `Treinar ${instrumentLabel}`}
                       </h1>
                       <p className="text-sm text-secondary mt-1 flex items-center gap-1.5">
                         <Icon name={config.inputMode === 'mic' ? 'mic' : 'keyboard'} size={14} className="text-neon-emerald" />
                         Entrada: {inputLabel}
+                        {currentExercise && progress[currentExercise.id] && (
+                          <span className="ml-2 px-2 py-0.5 rounded-full bg-neon-emerald/15 text-neon-emerald text-[10px] font-bold flex items-center gap-1">
+                            <Icon name="check" size={10} /> Concluído
+                          </span>
+                        )}
                       </p>
                     </div>
                   </div>

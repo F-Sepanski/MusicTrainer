@@ -7,6 +7,7 @@
 import { Icon } from './Icon';
 import { Button, Card, AnimatedSection } from './ui';
 import { AppLayout } from './AppLayout';
+import { DIFFICULTY_LABELS } from '../exercise/curriculum';
 import type { HistoryEntry } from '../storage/storage';
 
 interface Props {
@@ -55,9 +56,16 @@ export function HistoryScreen({ history, onBack, onClear }: Props) {
                     <Icon name="music" size={18} />
                   </div>
                   <div>
-                    <div className="font-medium">{h.levelName}</div>
+                    <div className="font-medium flex items-center gap-2">
+                      {h.levelName}
+                      {h.passed && (
+                        <span className="px-1.5 py-0.5 rounded-full bg-neon-emerald/15 text-neon-emerald text-[9px] font-bold flex items-center gap-0.5">
+                          <Icon name="check" size={9} /> Aprovado
+                        </span>
+                      )}
+                    </div>
                     <div className="text-xs text-muted">
-                      {h.clef === 'treble' ? 'Clave de Sol' : 'Clave de Fá'} · {h.instrument} ·{' '}
+                      {(h.difficulty && DIFFICULTY_LABELS[h.difficulty]) ?? ''}{h.difficulty ? ' · ' : ''}{h.clef === 'treble' ? 'Clave de Sol' : 'Clave de Fá'} · {h.instrument} ·{' '}
                       {new Date(h.timestamp).toLocaleString('pt-BR')}
                     </div>
                   </div>

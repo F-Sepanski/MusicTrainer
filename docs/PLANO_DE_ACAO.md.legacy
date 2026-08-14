@@ -28,7 +28,7 @@ Plano de ação estratégico e técnico para o desenvolvimento de um aplicativo 
 | Núcleo de Áudio (YIN + AudioWorklet) | ✅ Implementado | Detecção de pitch em thread dedicada |
 | Renderização VexFlow | ✅ Implementado | Notas com cores de status (verde/vermelho) |
 | Wizard de Configuração | ✅ Implementado | Mic A4/tolerância/threshold + manual (piano/violão/círculo) |
-| Rota de Exercícios | ✅ Implementado | 8 capítulos × múltiplos exercícios, níveis e armaduras |
+| Rota de Exercícios | ✅ Implementado | 3 Cursos × 13 capítulos × 77 níveis, com enarmonias e armaduras até 7 acidentes |
 | Entrada Manual | ✅ Implementado | Piano, braço de violão e círculo de quintas |
 | Sistema de Temas Dinâmico | ✅ Implementado | 18 presets (dark/light), accent custom, auto-accent |
 | Histórico de Sessões | ✅ Implementado | Persistido em `localStorage` |
@@ -308,7 +308,7 @@ gantt
 - ✅ Pipeline de áudio `getUserMedia` → `AudioWorklet` → YIN.
 - ✅ `<SheetMusicDisplay />` sobre VexFlow 5, com cores dinâmicas de status.
 - ✅ Gerador procedural de notas (`generator.ts`) com pools, armaduras e ritmo.
-- ✅ Rota com 8 capítulos progressivos × múltiplos exercícios.
+- ✅ Rota com 3 Cursos progressivos (Sol, Fá, Sistema Duplo) × 13 capítulos × 77 níveis.
 - ✅ Máquina de estados (setup → playing → results), transições fade.
 - ✅ Modo de entrada manual (piano, violão, círculo de quintas).
 - ✅ Sistema de temas dinâmico (18 presets) + accent custom/auto.
@@ -378,7 +378,7 @@ gantt
 | `src/components/SheetMusicDisplay.tsx` | Render VexFlow 5 (SVG), cores de status lidas das CSS vars do tema. |
 | `src/components/SetupWizard.tsx` | Wizard: Tema → Instrumento → Nível → Entrada (mic ou manual) → calibração. |
 | `src/components/inputs.tsx` | Entrada manual: Piano, Braço de Violão, Círculo de Quintas (sem revelar resposta). |
-| `src/exercise/curriculum.ts` | 8 capítulos progressivos com múltiplos exercícios, pools e armaduras. |
+| `src/exercise/curriculum.ts` | 3 Cursos (Sol, Fá, Sistema Duplo) → 13 capítulos → 77 níveis, com pools e armaduras. |
 | `src/exercise/generator.ts` | Geração procedural de notas com pools, armaduras e durações rítmicas. |
 | `src/components/ChapterTrainingScreen.tsx` | Tela de treino (máquina de estados, fade, resultados). |
 | `src/theme/*` | Sistema de temas dinâmico (18 presets, accent custom/auto, text-secondary derivado). |
@@ -393,8 +393,9 @@ gantt
   - Suporte a Clave de Sol/Fá e armaduras de clave (via `addKeySignature`).
   - Notas coloridas por status (pending/active/correct/incorrect) usando `--success`/`--error` do tema.
 - **Rota de Exercícios (Sprint 3)** ✅
-  - 8 capítulos: Naturais, Sustenidos, Bemóis, Armaduras, Rítmica, Clave de Fá, Fá+Acidentes, Cromático.
-  - Múltiplos exercícios por capítulo; pools por dificuldade; níveis desbloqueiam capítulos.
+  - 3 Cursos: Clave de Sol (4 capítulos), Clave de Fá (4 capítulos) e Sistema Duplo/Grand Staff (5 capítulos).
+  - 77 níveis progressivos: notas naturais nota-a-nota, suplementares, acidentes, enarmonias e armaduras de 1 a 7 acidentes.
+  - Dificuldade por nível define nº de notas (32/48/64) e aprovação (80/85/90% + tempo limite).
   - Máquina de estados com transição **fade** (sem contagem regressiva).
   - Entrada manual (piano/violão/círculo) para leitura sem microfone.
 - **UI/Tema (parcial de Sprint 5)** ✅

@@ -1,13 +1,13 @@
 /**
  * Generates random musical notes for sight-reading exercises,
- * supporting progressive chapter pools, key signatures, and rhythm.
+ * supporting progressive course chapters/levels, key signatures,
+ * explicit note pools, and grand staff (dual clef).
  *
  * @module exercise/generator
  */
 
-import type { ExerciseNote, ExerciseConfig } from '../types';
-import { midiToNoteName, midiToVexFlowKey, TREBLE_RANGE, BASS_RANGE } from '../audio/noteFrequencies';
-import type { Difficulty } from './curriculum';
+import type { ExerciseNote, ExerciseConfig, Clef } from '../types';
+import { midiToNoteName, midiToVexFlowKey } from '../audio/noteFrequencies';
 
 let noteIdCounter = 0;
 
@@ -16,29 +16,68 @@ export interface GeneratedExercise extends ExerciseConfig {
   keyFifths?: number;
   /** Note MIDI pitch classes allowed (0-11) */
   pool?: number[];
-  /** Rhythm durations (in beats) — when set, chapter uses rhythm */
+  /** Explicit MIDI notes to sample from (overrides pool+range random) */
+  midiNotes?: number[];
+  /** Explicit notes with exact VexFlow spellings (for enharmonics like E#, Cb) */
+  explicitNotes?: { midiNote: number; vfKey: string }[];
+  /** Rhythm durations (in beats) — when set, level uses rhythm */
   rhythmDurations?: number[];
+  /** Preference for sharp vs flat accidentals ('sharp', 'flat', or 'mixed') */
+  accidentalType?: 'sharp' | 'flat' | 'mixed';
 }
 
-/** Generate a set of random notes for an exercise with the given pool. */
+/**
+ * Determine which clef a MIDI note should be placed on for a grand staff.
+ * Notes >= middle C (60) go to treble, below go to bass.
+ */
+export function clefForMidi(midi: number, baseClef: Clef): 'treble' | 'bass' {
+  if (baseClef !== 'grand') {
+    return baseClef === 'treble' ? 'treble' : 'bass';
+  }
+  return midi >= 60 ? 'treble' : 'bass';
+}
+
+/** Generate a set of random notes for an exercise. */
 export function generateExercise(config: GeneratedExercise): ExerciseNote[] {
-  const range = config.clef === 'treble' ? TREBLE_RANGE : BASS_RANGE;
-  const minMidi = Math.max(config.minMidi, range.min);
-  const maxMidi = Math.min(config.maxMidi, range.max);
+  // explicitNotes (exact spellings) take precedence, then midiNotes, then random.
+  const useExplicitSpellings = config.explicitNotes && config.explicitNotes.length > 0;
+  const explicit = config.midiNotes && config.midiNotes.length > 0;
   const pool = config.pool ?? [0, 2, 4, 5, 7, 9, 11]; // natural notes default
 
   const notes: ExerciseNote[] = [];
 
   for (let i = 0; i < config.noteCount; i++) {
-    // Pick a random MIDI note whose pitch class is in the pool
     let midiNote: number;
-    let attempts = 0;
-    do {
-      midiNote = randomInt(minMidi, maxMidi);
-      attempts++;
-      // Avoid infinite loop — if pool too restrictive relative to range, accept
-      if (attempts > 200) break;
-    } while (!pool.includes(((midiNote % 12) + 12) % 12));
+    let vfKey: string;
+
+    const useSharps =
+      config.accidentalType === 'sharp'
+        ? true
+        : config.accidentalType === 'flat'
+        ? false
+        : (config.keyFifths ?? 0) > 0
+        ? true
+        : (config.keyFifths ?? 0) < 0
+        ? false
+        : Math.random() < 0.5;
+
+    if (useExplicitSpellings) {
+      const pick = config.explicitNotes![Math.floor(Math.random() * config.explicitNotes!.length)];
+      midiNote = pick.midiNote;
+      vfKey = pick.vfKey;
+    } else if (explicit) {
+      // Pick uniformly from the explicit note list.
+      midiNote = config.midiNotes![Math.floor(Math.random() * config.midiNotes!.length)];
+      vfKey = midiToVexFlowKey(midiNote, useSharps);
+    } else {
+      let attempts = 0;
+      do {
+        midiNote = randomInt(config.minMidi, config.maxMidi);
+        attempts++;
+        if (attempts > 200) break;
+      } while (!pool.includes(((midiNote % 12) + 12) % 12));
+      vfKey = midiToVexFlowKey(midiNote, useSharps);
+    }
 
     // Determine rhythm duration
     let duration = 1;
@@ -46,12 +85,15 @@ export function generateExercise(config: GeneratedExercise): ExerciseNote[] {
       duration = config.rhythmDurations[Math.floor(Math.random() * config.rhythmDurations.length)];
     }
 
+    const noteClef = clefForMidi(midiNote, config.clef);
+
     notes.push({
       id: noteIdCounter++,
       midiNote,
-      noteName: midiToNoteName(midiNote),
+      noteName: midiToNoteName(midiNote, 'letters', useSharps),
       duration,
-      vfKey: midiToVexFlowKey(midiNote),
+      vfKey,
+      clef: noteClef,
       status: i === 0 ? 'active' : 'pending',
     });
   }
@@ -64,45 +106,34 @@ export function resetNoteIdCounter(): void {
   noteIdCounter = 0;
 }
 
-/** Convenience: build exercise config from a chapter and difficulty. */
-export function configFromChapter(
-  chapter: { pools: Record<Difficulty, number[]>; keySignature: { fifths: number }; range: { min: number; max: number } },
-  difficulty: Difficulty,
-  clef: 'treble' | 'bass',
-  extra?: Partial<GeneratedExercise>
-): GeneratedExercise {
-  const isBassChapter = chapter.range.min < 55;
-  return {
-    clef,
-    noteCount: extra?.noteCount ?? 12,
-    minMidi: Math.max(chapter.range.min, isBassChapter ? 40 : 55),
-    maxMidi: Math.min(chapter.range.max, isBassChapter ? 64 : 81),
-    toleranceCents: extra?.toleranceCents ?? 30,
-    noteDelayMs: extra?.noteDelayMs ?? 250,
-    keyFifths: chapter.keySignature.fifths,
-    pool: chapter.pools[difficulty],
-    ...extra,
-  };
-}
-
-/** Build config from a specific chapter exercise (uses its own pool/clef/range/rhythm). */
+/** Build config from a specific level (uses its own pool/clef/range). */
 export function configFromExercise(
-  chapter: { range: { min: number; max: number } },
-  exercise: { pool: number[]; keyFifths?: number; rhythmDurations?: number[]; clef?: 'treble' | 'bass'; range?: { min: number; max: number } },
+  exercise: {
+    pool: number[];
+    midiNotes?: number[];
+    explicitNotes?: { midiNote: number; vfKey: string }[];
+    keyFifths?: number;
+    rhythmDurations?: number[];
+    clef: Clef;
+    range: { min: number; max: number };
+    hasAccidentals?: boolean;
+    accidentalType?: 'sharp' | 'flat' | 'mixed';
+  },
   extra?: Partial<GeneratedExercise>
 ): GeneratedExercise {
-  const clef = exercise.clef ?? (chapter.range.min < 55 ? 'bass' : 'treble');
-  const range = exercise.range ?? chapter.range;
   return {
-    clef,
-    noteCount: extra?.noteCount ?? 12,
-    minMidi: Math.max(range.min, clef === 'bass' ? 40 : 55),
-    maxMidi: Math.min(range.max, clef === 'bass' ? 64 : 81),
+    clef: exercise.clef,
+    noteCount: extra?.noteCount ?? 32,
+    minMidi: exercise.range.min,
+    maxMidi: exercise.range.max,
     toleranceCents: extra?.toleranceCents ?? 30,
     noteDelayMs: extra?.noteDelayMs ?? 250,
     keyFifths: exercise.keyFifths ?? 0,
     pool: exercise.pool,
+    midiNotes: exercise.midiNotes,
+    explicitNotes: exercise.explicitNotes,
     rhythmDurations: exercise.rhythmDurations,
+    accidentalType: exercise.accidentalType,
     ...extra,
   };
 }

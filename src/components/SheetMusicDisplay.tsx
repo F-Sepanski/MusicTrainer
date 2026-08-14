@@ -16,13 +16,13 @@
  */
 
 import { useEffect, useRef, useState, useMemo, useCallback } from 'react';
-import { Stave, StaveNote, Voice, Formatter, Renderer, Accidental, Annotation } from 'vexflow';
+import { Stave, StaveNote, Voice, Formatter, Renderer, Accidental, Annotation, GhostNote } from 'vexflow';
 import { midiToNoteName, type NotationSystem } from '../audio/noteFrequencies';
 import type { ExerciseNote } from '../types';
 
 interface Props {
   notes: ExerciseNote[];
-  clef: 'treble' | 'bass';
+  clef: 'treble' | 'bass' | 'grand';
   activeIndex?: number;
   width?: number;
   height?: number;
@@ -91,9 +91,14 @@ export function SheetMusicDisplay({
   }, [clefWidth, containerWidth]);
 
   // Staff vertical positioning (stave center = staveY + 60, height / 2 = centered)
+  const isGrand = clef === 'grand';
   const staveY = useMemo(() => {
     return Math.round(height / 2 - 60);
   }, [height]);
+
+  // For grand staff: treble stave above center, bass stave below.
+  const trebleStaveY = isGrand ? Math.round(height / 2 - 60 - 40) : staveY;
+  const bassStaveY = isGrand ? Math.round(height / 2 - 60 + 40) : staveY;
 
   // Middle line of the 5 staff lines (Line 2) is at staveY + 60 = height / 2
   const staffCenterY = useMemo(() => {
@@ -118,22 +123,35 @@ export function SheetMusicDisplay({
     const bgCtx = bgR.getContext();
 
     // Single unified stave from left (x=10) across the entire width
-    const stave = new Stave(10, staveY, Math.max(100, containerWidth - 20));
-    if (octaveShift === -1 || octaveShift === -2) {
-      stave.addClef(clef, 'default', '8vb');
-    } else if (octaveShift === 1 || octaveShift === 2) {
-      stave.addClef(clef, 'default', '8va');
+    if (clef === 'grand') {
+      // Grand staff: treble stave on top, bass stave below.
+      const trebleStave = new Stave(10, trebleStaveY, Math.max(100, containerWidth - 20));
+      trebleStave.addClef('treble');
+      if (keyFifths !== 0) trebleStave.addKeySignature(fifthsToKeySpec(keyFifths));
+      trebleStave.setContext(bgCtx).draw();
+
+      const bassStave = new Stave(10, bassStaveY, Math.max(100, containerWidth - 20));
+      bassStave.addClef('bass');
+      if (keyFifths !== 0) bassStave.addKeySignature(fifthsToKeySpec(keyFifths));
+      bassStave.setContext(bgCtx).draw();
     } else {
-      stave.addClef(clef);
+      const stave = new Stave(10, staveY, Math.max(100, containerWidth - 20));
+      if (octaveShift === -1 || octaveShift === -2) {
+        stave.addClef(clef, 'default', '8vb');
+      } else if (octaveShift === 1 || octaveShift === 2) {
+        stave.addClef(clef, 'default', '8va');
+      } else {
+        stave.addClef(clef);
+      }
+      if (keyFifths !== 0) {
+        stave.addKeySignature(fifthsToKeySpec(keyFifths));
+      }
+      stave.setContext(bgCtx).draw();
     }
-    if (keyFifths !== 0) {
-      stave.addKeySignature(fifthsToKeySpec(keyFifths));
-    }
-    stave.setContext(bgCtx).draw();
 
     normalizeSvg(bgEl);
     applyStaffTheme(bgEl, staffLineColor, symbolColor);
-  }, [clef, keyFifths, containerWidth, height, staveY, theme, octaveShift]);
+  }, [clef, keyFifths, containerWidth, height, staveY, theme, octaveShift, trebleStaveY, bassStaveY]);
 
   /* ── 2. Render Notes on Shared Coordinate System ─────────── */
   const renderNotes = useCallback(() => {
@@ -149,33 +167,27 @@ export function SheetMusicDisplay({
     notesR.resize(totalNotesWidth, height);
     const notesCtx = notesR.getContext();
 
-    // Virtual stave sharing the exact same staveY and starting at targetX
-    const notesStave = new Stave(targetX, staveY, notes.length * NOTE_SPACING);
-    notesStave.setContext(notesCtx);
-
-    const vfNotes = notes.map((note, i) => {
+    const createStaveNote = (note: ExerciseNote, noteClef: 'treble' | 'bass', index: number) => {
       const sn = new StaveNote({
-        clef,
+        clef: noteClef,
         keys: [note.vfKey],
         duration: 'q',
       });
 
-      // Parse accidental if present in key string (e.g. "c#/4", "bb/3")
       const keyPart = note.vfKey.split('/')[0] || '';
-      const accidentalMatch = keyPart.match(/([#bn]+)/);
-      if (accidentalMatch) {
-        sn.addModifier(new Accidental(accidentalMatch[1]), 0);
+      const acc = keyPart.slice(1);
+      if (acc) {
+        sn.addModifier(new Accidental(acc), 0);
       }
 
-      // Color mapping with dynamic theme colors
-      const isCurrent = i === activeIndex;
+      const isCurrent = index === activeIndex;
       let color = defaultNoteColor;
       if (note.status === 'correct') {
         color = statusColors.success;
       } else if (note.status === 'incorrect') {
         color = statusColors.error;
-        // Show correct note name annotation on incorrect answers
-        const noteLabel = midiToNoteName(note.midiNote, notation, false);
+        const isSharp = keyPart.includes('#');
+        const noteLabel = midiToNoteName(note.midiNote, notation, isSharp);
         const ann = new Annotation(noteLabel);
         ann.setVerticalJustification(Annotation.VerticalJustify.BOTTOM);
         ann.setFont({ family: 'system-ui, -apple-system, BlinkMacSystemFont, sans-serif', size: 12, weight: 'bold' });
@@ -193,21 +205,71 @@ export function SheetMusicDisplay({
       sn.setLedgerLineStyle({ strokeStyle: staffLineColor, fillStyle: staffLineColor });
 
       return sn;
-    });
+    };
 
-    const voice = new Voice({ numBeats: notes.length, beatValue: 4 });
-    voice.setStrict(false);
-    voice.addTickables(vfNotes);
+    let offsets: number[] = [];
 
-    new Formatter().joinVoices([voice]).format([voice], notes.length * NOTE_SPACING);
-    voice.draw(notesCtx, notesStave);
+    if (clef === 'grand') {
+      const trebleStave = new Stave(targetX, trebleStaveY, notes.length * NOTE_SPACING);
+      trebleStave.setContext(notesCtx);
+
+      const bassStave = new Stave(targetX, bassStaveY, notes.length * NOTE_SPACING);
+      bassStave.setContext(notesCtx);
+
+      const trebleTickables: (StaveNote | GhostNote)[] = [];
+      const bassTickables: (StaveNote | GhostNote)[] = [];
+
+      notes.forEach((note, i) => {
+        const noteClef = note.clef ?? (note.midiNote >= 60 ? 'treble' : 'bass');
+        if (noteClef === 'treble') {
+          trebleTickables.push(createStaveNote(note, 'treble', i));
+          bassTickables.push(new GhostNote({ duration: 'q' }));
+        } else {
+          trebleTickables.push(new GhostNote({ duration: 'q' }));
+          bassTickables.push(createStaveNote(note, 'bass', i));
+        }
+      });
+
+      const trebleVoice = new Voice({ numBeats: notes.length, beatValue: 4 }).setStrict(false);
+      trebleVoice.addTickables(trebleTickables);
+
+      const bassVoice = new Voice({ numBeats: notes.length, beatValue: 4 }).setStrict(false);
+      bassVoice.addTickables(bassTickables);
+
+      new Formatter()
+        .joinVoices([trebleVoice])
+        .joinVoices([bassVoice])
+        .format([trebleVoice, bassVoice], notes.length * NOTE_SPACING);
+
+      trebleVoice.draw(notesCtx, trebleStave);
+      bassVoice.draw(notesCtx, bassStave);
+
+      offsets = notes.map((note, i) => {
+        const noteClef = note.clef ?? (note.midiNote >= 60 ? 'treble' : 'bass');
+        const tickable = noteClef === 'treble' ? trebleTickables[i] : bassTickables[i];
+        return tickable.getAbsoluteX();
+      });
+    } else {
+      const groupStave = new Stave(targetX, staveY, notes.length * NOTE_SPACING);
+      groupStave.setContext(notesCtx);
+
+      const sns = notes.map((note, i) => createStaveNote(note, clef, i));
+
+      const voice = new Voice({ numBeats: notes.length, beatValue: 4 });
+      voice.setStrict(false);
+      voice.addTickables(sns);
+
+      new Formatter().joinVoices([voice]).format([voice], notes.length * NOTE_SPACING);
+      voice.draw(notesCtx, groupStave);
+
+      offsets = sns.map((sn) => sn.getAbsoluteX());
+    }
 
     normalizeSvg(notesEl);
 
     // Extract exact rendered X positions of all notes to ensure zero drift
-    const offsets = vfNotes.map((n) => n.getAbsoluteX());
     setNoteOffsets(offsets);
-  }, [notes, clef, activeIndex, targetX, totalNotesWidth, height, staveY, theme, notation]);
+  }, [notes, clef, activeIndex, targetX, totalNotesWidth, height, staveY, theme, notation, trebleStaveY, bassStaveY]);
 
   useEffect(() => {
     renderBackground();

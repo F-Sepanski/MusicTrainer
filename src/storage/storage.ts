@@ -11,6 +11,26 @@ import type { SessionResult } from '../types';
 const CONFIG_KEY = 'music-trainer:config';
 const HISTORY_KEY = 'music-trainer:history';
 const THEME_KEY = 'music-trainer:theme';
+const PROGRESS_KEY = 'music-trainer:progress';
+const LAST_EXERCISE_KEY = 'music-trainer:last-exercise';
+
+/** Version of the curriculum data model. Bump to reset stale progress. */
+const CURRICULUM_VERSION = 4;
+const PROGRESS_VERSION_KEY = 'music-trainer:progress-version';
+
+/** Persisted progress: maps exercise id -> highest difficulty passed. */
+export type ChapterProgress = Record<string, 'easy' | 'medium' | 'hard'>;
+
+/** Difficulty ordering (index = rank). */
+export const DIFFICULTY_RANK = ['easy', 'medium', 'hard'] as const;
+export type DifficultyRank = (typeof DIFFICULTY_RANK)[number];
+
+/** Remembers the last exercise the user was training. */
+export interface LastExercise {
+  chapterId: string;
+  exerciseId: string;
+  difficulty: 'easy' | 'medium' | 'hard';
+}
 
 export interface HistoryEntry extends SessionResult {
   id: number;
@@ -102,6 +122,73 @@ export function loadThemeConfig(): ThemeConfig {
 export function saveThemeConfig(config: ThemeConfig): void {
   try {
     localStorage.setItem(THEME_KEY, JSON.stringify(config));
+  } catch {
+    // ignore
+  }
+}
+
+/** Load chapter progress (exercise id -> highest difficulty passed). */
+export function loadProgress(): ChapterProgress {
+  try {
+    const version = localStorage.getItem(PROGRESS_VERSION_KEY);
+    if (version !== String(CURRICULUM_VERSION)) {
+      // Curriculum model changed — discard stale progress and mark version.
+      localStorage.removeItem(PROGRESS_KEY);
+      localStorage.removeItem(LAST_EXERCISE_KEY);
+      localStorage.setItem(PROGRESS_VERSION_KEY, String(CURRICULUM_VERSION));
+      return {};
+    }
+    const raw = localStorage.getItem(PROGRESS_KEY);
+    return raw ? (JSON.parse(raw) as ChapterProgress) : {};
+  } catch {
+    return {};
+  }
+}
+
+/** Save chapter progress. */
+export function saveProgress(progress: ChapterProgress): void {
+  try {
+    localStorage.setItem(PROGRESS_KEY, JSON.stringify(progress));
+  } catch {
+    // ignore
+  }
+}
+
+/** Mark an exercise as passed at a given difficulty, keeping the max. */
+export function markExercisePassed(exerciseId: string, difficulty: 'easy' | 'medium' | 'hard'): void {
+  const progress = loadProgress();
+  const current = progress[exerciseId];
+  // Only upgrade when the new difficulty rank is greater than the stored one.
+  if (!current || DIFFICULTY_RANK.indexOf(difficulty) > DIFFICULTY_RANK.indexOf(current)) {
+    progress[exerciseId] = difficulty;
+    saveProgress(progress);
+  }
+}
+
+/** Highest difficulty passed for an exercise, or null if none. */
+export function getExerciseDifficulty(progress: ChapterProgress, exerciseId: string): 'easy' | 'medium' | 'hard' | null {
+  return progress[exerciseId] ?? null;
+}
+
+/** Whether an exercise has been completed at any difficulty. */
+export function isExerciseComplete(progress: ChapterProgress, exerciseId: string): boolean {
+  return !!progress[exerciseId];
+}
+
+/** Load the last trained exercise, or null. */
+export function loadLastExercise(): LastExercise | null {
+  try {
+    const raw = localStorage.getItem(LAST_EXERCISE_KEY);
+    return raw ? (JSON.parse(raw) as LastExercise) : null;
+  } catch {
+    return null;
+  }
+}
+
+/** Persist the last trained exercise. */
+export function saveLastExercise(last: LastExercise): void {
+  try {
+    localStorage.setItem(LAST_EXERCISE_KEY, JSON.stringify(last));
   } catch {
     // ignore
   }

@@ -18,26 +18,26 @@ MusicTrainer/
 │   │   ├── ChapterSelectScreen.tsx    # Seleção de capítulos, progresso e estatísticas
 │   │   ├── ChapterTrainingScreen.tsx  # Tela principal de treino, HUD e listeners
 │   │   ├── inputs.tsx                 # PianoKeyboard, GuitarFretboard, CircleOfFifths, Glyphs
-│   │   ├── SheetMusicDisplay.tsx      # Renderizador contínuo e responsivo VexFlow 5
+│   │   ├── SheetMusicDisplay.tsx      # Renderizador contínuo e responsivo VexFlow 5 (inclui Grand Staff)
 │   │   ├── SettingsModal.tsx          # Modal de calibração, temas e parâmetros de microfone
 │   │   ├── SetupWizard.tsx            # Assistente inicial de calibração dinâmica
-│   │   ├── ThemeSettings.tsx          # Seletor e customizador de paletas de cores
+│   │   ├── ThemeSettings.tsx          # Seletor e customizador de paletas de cores e fontes
 │   │   ├── ui.tsx                     # Componentes base (Card, Button, Slider, AnimatedSection)
 │   │   └── Icon.tsx                   # Sistema unificado de ícones vetoriais
 │   ├── exercise/              # Modelagem pedagógica e gerador de notas
-│   │   ├── curriculum.ts      # Definição dos capítulos, níveis, armaduras e amplitudes
-│   │   └── generator.ts       # Algoritmo procedural de geração ponderada de notas
+│   │   ├── curriculum.ts      # 3 Cursos (Sol, Fá, Sistema Duplo) → capítulos → níveis
+│   │   └── generator.ts       # Geração procedural (pool, midiNotes, explicitNotes, grand clef)
 │   ├── storage/               # Persistência de progresso e configurações
 │   │   └── progressStorage.ts # Gerenciamento de histórico, notas e desbloqueios
 │   ├── theme/                 # Design System e temas
 │   │   ├── presets.ts         # Presets de cores (Dark, Gruvbox, Dracula, Nord, OneDark, etc.)
-│   │   └── ThemeContext.tsx   # Provedor React de variáveis CSS e troca de tema
+│   │   └── ThemeContext.tsx   # Provedor React de variáveis CSS, tema e fonte da UI
 │   ├── types/                 # Interfaces e tipos TypeScript estritos
 │   │   ├── exercise.ts        # Tipos de exercícios, notas, partituras e resultados
 │   │   └── wizard.ts          # Tipos de configuração, calibração e áudio
 │   ├── index.css              # Reset, animações de keyframe (@keyframes shrinkWidth) e tokens
 │   ├── main.tsx               # Ponto de entrada da aplicação React
-│   └── App.tsx                # Roteamento de estados (Wizard, Seleção, Treino)
+│   └── App.tsx                # Roteamento de estados (Wizard, Home, Seleção, Treino)
 ```
 
 ---
@@ -56,15 +56,17 @@ MusicTrainer/
 - **Renderização em Duas Camadas**:
   1. **Background Stave Layer**: Pauta contínua unificada com clave (incluindo `8vb` e `8va` quando a transposição de oitava está ativa) e armadura de clave dinâmica calculada em quintas (`keyFifths`).
   2. **Active Notes Layer**: Notas renderizadas proceduralmente com animação de rolagem horizontal contínua centrada na nota ativa (36% da largura da tela).
+- **Grand Staff**: Quando o nível usa `clef: 'grand'`, o componente desenha **duas pautas simultâneas** (Sol em cima, Fá embaixo) e distribui cada nota à pauta conforme a altura (MIDI ≥ 60 → Sol; < 60 → Fá).
 
 ---
 
 ### 2.3. Camada de Treinamento (`src/components/ChapterTrainingScreen.tsx`)
 Controla o fluxo de cada sessão de prática:
-1. **Geração**: Invoca `generateExercise()` baseado nas regras do capítulo.
-2. **Avaliação**: Valida respostas por microfone ou manual.
-3. **Métricas**: Registra precisão percentual, tempo de reação em milissegundos e desvio em cents por nota.
-4. **Persistência**: Salva automaticamente o progresso e calcula estrelas/desbloqueios em `progressStorage.ts`.
+1. **Currículo**: `buildCurriculum()` retorna os **3 Cursos**; a interface permite navegar por Curso → Capítulo → Nível.
+2. **Geração**: Invoca `generateExercise()` via `configFromExercise(level, { noteCount })`, onde `noteCount` é definido pela dificuldade (32/48/64).
+3. **Avaliação**: Valida respostas por microfone ou manual; calcula precisão, tempo de reação e desvio em cents.
+4. **Aprovação**: Um nível é aprovado com precisão ≥ limite da dificuldade (80/85/90%) **E** tempo médio ≤ limite (4s/3s/2s).
+5. **Persistência**: Salva automaticamente o progresso (maior dificuldade completada por nível) e o histórico em `progressStorage.ts`.
 
 ---
 
