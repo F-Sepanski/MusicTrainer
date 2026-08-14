@@ -1,5 +1,6 @@
 /**
- * SetupWizard — 7-step calibration: Welcome → Mic → A4 → Calibrate → Instrument → Clef → Ready
+ * SetupWizard — dynamic multi-step calibration.
+ * Flow: Welcome → Instrument → Level → Input Mode → (Mic: A4 + Calibrate | Manual: type) → Ready
  * Uses reusable UI components, SVG icons, and premium animations.
  *
  * @module components/SetupWizard
@@ -10,8 +11,7 @@ import { audioEngine } from '../audio/AudioEngine';
 import { Icon, type IconName } from './Icon';
 import { Button, Card, Slider, AnimatedSection, StatCard } from './ui';
 import { ThemeToggle } from './ThemeToggle';
-import { useTheme } from '../theme/ThemeContext';
-import type { WizardConfig, InstrumentType, PitchData } from '../types/wizard';
+import type { WizardConfig, InstrumentType, PitchData, Level, InputMode, ManualType } from '../types/wizard';
 
 interface Props {
   onComplete: (config: WizardConfig) => void;
@@ -30,26 +30,51 @@ const INSTRUMENTS: { type: InstrumentType; label: string; icon: IconName }[] = [
   { type: 'other', label: 'Outro', icon: 'other' },
 ];
 
-const STEP_TITLES = ['Bem-vindo', 'Microfone', 'Afinação', 'Calibrar', 'Instrumento', 'Clave', 'Pronto!'];
+const LEVELS: { level: Level; label: string; desc: string; icon: IconName; unlock: number }[] = [
+  { level: 'beginner', label: 'Iniciante', desc: 'Nunca li partitura', icon: 'target', unlock: 3 },
+  { level: 'learner', label: 'Aprendiz', desc: 'Pouca experiência', icon: 'clock', unlock: 5 },
+  { level: 'intermediate', label: 'Intermediário', desc: 'Lê com alguma fluência', icon: 'music', unlock: 7 },
+  { level: 'experienced', label: 'Experiente', desc: 'Leitura fluente', icon: 'sparkles', unlock: 8 },
+  { level: 'professional', label: 'Profissional', desc: 'Avançado', icon: 'chart', unlock: 8 },
+];
+
+const MANUAL_TYPES: { type: ManualType; label: string; icon: IconName; desc: string }[] = [
+  { type: 'piano', label: 'Teclado/Piano', icon: 'piano', desc: 'Clique nas teclas' },
+  { type: 'guitar', label: 'Braço de Violão', icon: 'guitar', desc: 'Clique nas casas' },
+  { type: 'circle', label: 'Círculo de Quintas', icon: 'music', desc: 'Selecione a nota no círculo' },
+];
 
 interface StepProps {
   config: Partial<WizardConfig>;
   updateConfig: (u: Partial<WizardConfig>) => void;
   pitch: PitchData | null;
+  onNext?: () => void;
 }
 
 export function SetupWizard({ onComplete, onCancel, initialConfig }: Props) {
-  const [step, setStep] = useState(0);
+  // Build the ordered steps based on input mode
+  const buildSteps = useCallback((mode: InputMode): string[] => {
+    const base = ['Bem-vindo', 'Instrumento', 'Nível', 'Entrada'];
+    if (mode === 'mic') {
+      return [...base, 'Afinação', 'Calibrar', 'Pronto!'];
+    }
+    return [...base, 'Entrada Manual', 'Pronto!'];
+  }, []);
+
   const [config, setConfig] = useState<Partial<WizardConfig>>({
     toleranceCents: initialConfig?.toleranceCents ?? 30,
-    clef: initialConfig?.clef ?? 'treble',
     instrument: initialConfig?.instrument ?? 'piano',
     a4Frequency: initialConfig?.a4Frequency ?? 440,
     volumeThreshold: initialConfig?.volumeThreshold ?? 0.06,
     noteDelayMs: initialConfig?.noteDelayMs ?? 250,
     deviceId: initialConfig?.deviceId,
+    level: initialConfig?.level ?? 'beginner',
+    inputMode: initialConfig?.inputMode ?? 'mic',
+    manualType: initialConfig?.manualType ?? 'piano',
   });
+  const [step, setStep] = useState(0);
   const [pitch, setPitch] = useState<PitchData | null>(null);
+  const stepTitles = buildSteps(config.inputMode ?? 'mic');
 
   useEffect(() => {
     const unsub = audioEngine.onPitch((data) => setPitch(data));
@@ -62,32 +87,47 @@ export function SetupWizard({ onComplete, onCancel, initialConfig }: Props) {
 
   const goNext = useCallback(() => {
     setStep((s) => {
-      const next = Math.min(s + 1, 6);
-      if (s === 1 && next === 2 && config.deviceId) {
+      const titles = buildSteps(config.inputMode ?? 'mic');
+      const next = Math.min(s + 1, titles.length - 1);
+      // Start audio when leaving mic-based steps (step index 4 = A4 in mic mode)
+      const isMicFlow = (config.inputMode ?? 'mic') === 'mic';
+      const atA4Entry = isMicFlow && s === 4 && next === 5;
+      if (atA4Entry && config.deviceId) {
         audioEngine.start(config.a4Frequency ?? 440).catch(console.error);
       }
       return next;
     });
-  }, [config.deviceId, config.a4Frequency]);
+  }, [config.inputMode, config.deviceId, config.a4Frequency, buildSteps]);
 
   const goBack = useCallback(() => setStep((s) => Math.max(s - 1, 0)), []);
-  const canProceed = step !== 1 || !!config.deviceId;
 
   const handleComplete = useCallback(() => {
     audioEngine.stop();
-    if (config.deviceId) onComplete(config as WizardConfig);
+    onComplete(config as WizardConfig);
   }, [config, onComplete]);
 
   const renderStep = () => {
-    const p: StepProps = { config, updateConfig, pitch };
+    const p: StepProps = { config, updateConfig, pitch, onNext: goNext };
+    const mode = config.inputMode ?? 'mic';
+    if (mode === 'mic') {
+      switch (step) {
+        case 0: return <WelcomeStep onNext={goNext} />;
+        case 1: return <InstrumentStep {...p} />;
+        case 2: return <LevelStep {...p} />;
+        case 3: return <InputModeStep {...p} />;
+        case 4: return <A4Step {...p} />;
+        case 5: return <CalibrateStep {...p} />;
+        case 6: return <ReadyStep config={config} />;
+      }
+    }
+    // Manual flow
     switch (step) {
       case 0: return <WelcomeStep onNext={goNext} />;
-      case 1: return <MicStep {...p} />;
-      case 2: return <A4Step {...p} />;
-      case 3: return <CalibrateStep {...p} />;
-      case 4: return <InstrumentStep {...p} />;
-      case 5: return <ClefStep {...p} />;
-      case 6: return <ReadyStep config={config} />;
+      case 1: return <InstrumentStep {...p} />;
+      case 2: return <LevelStep {...p} />;
+      case 3: return <InputModeStep {...p} />;
+      case 4: return <ManualTypeStep {...p} />;
+      case 5: return <ReadyStep config={config} />;
     }
   };
 
@@ -98,16 +138,16 @@ export function SetupWizard({ onComplete, onCancel, initialConfig }: Props) {
         <AnimatedSection type="slide-up">
           <div className="mb-6">
             <div className="flex justify-between text-xs text-secondary mb-3">
-              <span>Passo {step + 1} de {STEP_TITLES.length}</span>
-              <span>{STEP_TITLES[step]}</span>
+              <span>Passo {step + 1} de {stepTitles.length}</span>
+              <span>{stepTitles[step]}</span>
             </div>
             {/* Track with overlay dots — fill aligns with dots */}
             <div className="relative h-2 bg-surface-700 rounded-full">
               <div
                 className="absolute h-full bg-gradient-to-r from-neon-cyan to-neon-purple rounded-full transition-all duration-500"
-                style={{ width: `${(step / (STEP_TITLES.length - 1)) * 100}%` }}
+                style={{ width: `${(step / (stepTitles.length - 1)) * 100}%` }}
               />
-              {STEP_TITLES.map((_, i) => (
+              {stepTitles.map((_, i) => (
                 <div
                   key={i}
                   className={`absolute -top-[3px] w-[14px] h-[14px] rounded-full transition-all duration-300 -translate-x-1/2 ${
@@ -117,7 +157,7 @@ export function SetupWizard({ onComplete, onCancel, initialConfig }: Props) {
                         : 'bg-neon-cyan'
                       : 'bg-surface-600'
                   }`}
-                  style={{ left: `${(i / (STEP_TITLES.length - 1)) * 100}%` }}
+                  style={{ left: `${(i / (stepTitles.length - 1)) * 100}%` }}
                 />
               ))}
             </div>
@@ -125,7 +165,7 @@ export function SetupWizard({ onComplete, onCancel, initialConfig }: Props) {
         </AnimatedSection>
 
         {/* Content */}
-        <AnimatedSection type="fade" key={step}>
+        <AnimatedSection type="fade" key={`${step}-${config.inputMode}`}>
           <div className="bg-surface-800 rounded-2xl p-8 border border-surface min-h-[420px] flex flex-col">
             {renderStep()}
           </div>
@@ -137,13 +177,13 @@ export function SetupWizard({ onComplete, onCancel, initialConfig }: Props) {
             <Icon name="back" size={16} />
             {step === 0 && onCancel ? 'Cancelar' : 'Voltar'}
           </Button>
-          {step < 6 ? (
-            <Button variant="primary" onClick={goNext} disabled={!canProceed} iconRight="forward">
+          {step < stepTitles.length - 1 ? (
+            <Button variant="primary" onClick={goNext} iconRight="forward">
               Próximo
             </Button>
           ) : (
-            <Button variant="success" onClick={handleComplete} disabled={!config.deviceId} icon="play">
-              Iniciar Treino
+            <Button variant="success" onClick={handleComplete} icon="play">
+              Concluir
             </Button>
           )}
         </div>
@@ -179,99 +219,143 @@ function WelcomeStep({ onNext }: { onNext: () => void }) {
       </div>
       <h2 className="text-2xl font-bold gradient-text">MusicTrainer</h2>
       <p className="text-secondary max-w-sm">
-        Vamos calibrar o app para o seu ambiente.
+        Vamos configurar seu perfil e instrumento.
         Leva menos de <span className="text-primary font-medium">1 minuto</span>.
       </p>
       <div className="grid grid-cols-3 gap-6 text-sm text-secondary">
         <div className="flex flex-col items-center gap-2">
-          <span className="text-neon-cyan"><Icon name="mic" size={24} /></span>
-          <span>Microfone</span>
+          <span className="text-neon-cyan"><Icon name="instrument" size={24} /></span>
+          <span>Instrumento</span>
         </div>
         <div className="flex flex-col items-center gap-2">
-          <span className="text-neon-purple"><Icon name="tuning" size={24} /></span>
-          <span>Afinação</span>
+          <span className="text-neon-purple"><Icon name="target" size={24} /></span>
+          <span>Nível</span>
         </div>
         <div className="flex flex-col items-center gap-2">
-          <span className="text-neon-emerald"><Icon name="target" size={24} /></span>
-          <span>Calibrar</span>
+          <span className="text-neon-emerald"><Icon name="mic" size={24} /></span>
+          <span>Entrada</span>
         </div>
       </div>
     </div>
   );
 }
 
-function MicStep({ config, updateConfig }: StepProps) {
-  const [devices, setDevices] = useState<MediaDeviceInfo[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [permissionError, setPermissionError] = useState<string | null>(null);
+function InstrumentStep({ config, updateConfig }: StepProps) {
+  return (
+    <div className="flex flex-col gap-5 flex-1">
+      <StepHeader icon="instrument" title="Instrumento Principal" subtitle="Qual é o seu instrumento?" />
+      <div className="grid grid-cols-2 gap-3 flex-1">
+        {INSTRUMENTS.map((inst) => (
+          <button key={inst.type} onClick={() => updateConfig({ instrument: inst.type })}
+            className={`p-4 rounded-xl flex flex-col items-center gap-2 transition-all ${
+              config.instrument === inst.type
+                ? 'bg-neon-purple/15 border border-neon-purple/50 text-primary'
+                : 'bg-surface-700 border border-surface text-secondary hover:border-gray-400 card-hover'
+            }`}>
+            <span className="text-neon-purple"><Icon name={inst.icon} size={28} /></span>
+            <span className="font-medium text-sm">{inst.label}</span>
+          </button>
+        ))}
+      </div>
+    </div>
+  );
+}
 
-  useEffect(() => {
-    let cancelled = false;
+function LevelStep({ config, updateConfig }: StepProps) {
+  return (
+    <div className="flex flex-col gap-5 flex-1">
+      <StepHeader icon="target" title="Seu Nível" subtitle="Define os capítulos disponíveis" />
+      <div className="flex flex-col gap-3 flex-1">
+        {LEVELS.map((lvl) => (
+          <button key={lvl.level} onClick={() => updateConfig({ level: lvl.level })}
+            className={`p-4 rounded-xl flex items-center gap-3 transition-all ${
+              config.level === lvl.level
+                ? 'bg-neon-cyan/10 border border-neon-cyan/50 text-primary'
+                : 'bg-surface-700 border border-surface text-secondary hover:border-gray-400'
+            }`}>
+            <span className={`${config.level === lvl.level ? 'text-neon-cyan' : 'text-muted'}`}>
+              <Icon name={lvl.icon} size={22} />
+            </span>
+            <div className="text-left">
+              <div className="font-medium">{lvl.label}</div>
+              <div className="text-xs text-muted">{lvl.desc}</div>
+            </div>
+            <div className="ml-auto text-[10px] text-muted font-mono">
+              {lvl.unlock === 8 ? 'todos' : `até cap ${lvl.unlock}`}
+            </div>
+          </button>
+        ))}
+      </div>
+    </div>
+  );
+}
 
-    // Request mic permission first so we get device labels
-    // (enumerateDevices only returns labels after permission granted)
-    const requestPermission = async () => {
-      try {
-        const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
-        // Stop the temp stream — actual capture starts in the next step
-        stream.getTracks().forEach((t) => t.stop());
-        setPermissionError(null);
-
-        const all = await navigator.mediaDevices.enumerateDevices();
-        if (cancelled) return;
-        const mics = all.filter((d) => d.kind === 'audioinput');
-        setDevices(mics);
-        if (mics.length > 0 && !config.deviceId) updateConfig({ deviceId: mics[0].deviceId });
-      } catch (err) {
-        if (cancelled) return;
-        const name = err instanceof Error ? err.name : '';
-        setPermissionError(
-          name === 'NotAllowedError'
-            ? 'Permissão do microfone negada. Habilite-a nas configurações do navegador e tente novamente.'
-            : name === 'NotFoundError'
-            ? 'Nenhum microfone encontrado. Conecte um dispositivo.'
-            : 'Não foi possível acessar o microfone.'
-        );
-      } finally {
-        if (!cancelled) setLoading(false);
-      }
-    };
-
-    requestPermission();
-    return () => { cancelled = true; };
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
+function InputModeStep({ config, updateConfig }: StepProps) {
+  // Suggest a default manual type based on instrument when switching to manual
+  const suggestManualType = (): ManualType => {
+    switch (config.instrument) {
+      case 'guitar': return 'guitar';
+      case 'piano': return 'piano';
+      default: return 'circle';
+    }
+  };
 
   return (
     <div className="flex flex-col gap-5 flex-1">
-      <StepHeader icon="mic" title="Microfone" subtitle="Selecione o dispositivo de entrada" />
-      {loading ? (
-        <div className="text-center text-secondary py-8 shimmer-bg rounded-xl">Carregando...</div>
-      ) : permissionError ? (
-        <div className="flex flex-col items-center gap-4 py-6 text-center">
-          <div className="text-3xl text-neon-rose"><Icon name="mic" size={32} /></div>
-          <p className="text-sm text-neon-rose max-w-xs">{permissionError}</p>
-          <Button variant="secondary" icon="sparkles" onClick={() => window.location.reload()}>
-            Tentar novamente
-          </Button>
-        </div>
-      ) : (
-        <div className="flex flex-col gap-2 flex-1">
-          {devices.map((d) => (
-            <button key={d.deviceId} onClick={() => updateConfig({ deviceId: d.deviceId })}
-              className={`p-4 rounded-xl text-left transition-all flex items-center gap-3 ${
-                config.deviceId === d.deviceId
-                  ? 'bg-neon-cyan/10 border border-neon-cyan/50 text-primary'
-                  : 'bg-surface-700 border border-surface text-secondary hover:border-gray-400'
-              }`}>
-              <Icon name="mic" size={20} className={config.deviceId === d.deviceId ? 'text-neon-cyan' : 'text-muted'} />
-              <span className="font-medium">{d.label || `Microfone ${d.deviceId.slice(0, 8)}`}</span>
-            </button>
-          ))}
-          {devices.length === 0 && <div className="text-center text-secondary py-4">Nenhum microfone encontrado</div>}
-        </div>
-      )}
-      <p className="text-xs text-muted text-center">Use fones de ouvido para evitar eco</p>
+      <StepHeader icon="mic" title="Como tocará as notas?" subtitle="Microfone ou manual" />
+      <div className="flex flex-col gap-3 flex-1 justify-center">
+        <button onClick={() => updateConfig({ inputMode: 'mic' })}
+          className={`p-6 rounded-xl flex items-center gap-4 transition-all ${
+            config.inputMode === 'mic'
+              ? 'bg-neon-cyan/10 border-2 border-neon-cyan/50 text-primary'
+              : 'bg-surface-700 border border-surface text-secondary hover:border-gray-400'
+          }`}>
+          <span className="text-neon-cyan"><Icon name="mic" size={32} /></span>
+          <div className="text-left">
+            <div className="font-semibold">Microfone</div>
+            <div className="text-xs text-muted">Detecta suas notas em tempo real. Requer calibração.</div>
+          </div>
+        </button>
+        <button onClick={() => updateConfig({ inputMode: 'manual', manualType: suggestManualType() })}
+          className={`p-6 rounded-xl flex items-center gap-4 transition-all ${
+            config.inputMode === 'manual'
+              ? 'bg-neon-purple/10 border-2 border-neon-purple/50 text-primary'
+              : 'bg-surface-700 border border-surface text-secondary hover:border-gray-400'
+          }`}>
+          <span className="text-neon-purple"><Icon name="keyboard" size={32} /></span>
+          <div className="text-left">
+            <div className="font-semibold">Manual (clique/teclado)</div>
+            <div className="text-xs text-muted">Toque as notas clicando ou usando o teclado. Sem microfone.</div>
+          </div>
+        </button>
+      </div>
+    </div>
+  );
+}
+
+function ManualTypeStep({ config, updateConfig }: StepProps) {
+  return (
+    <div className="flex flex-col gap-5 flex-1">
+      <StepHeader icon="keyboard" title="Tipo de Entrada Manual" subtitle="Como deseja inserir as notas?" />
+      <div className="flex flex-col gap-3 flex-1">
+        {MANUAL_TYPES.map((m) => (
+          <button key={m.type} onClick={() => updateConfig({ manualType: m.type })}
+            className={`p-5 rounded-xl flex items-center gap-4 transition-all ${
+              config.manualType === m.type
+                ? 'bg-neon-purple/15 border border-neon-purple/50 text-primary'
+                : 'bg-surface-700 border border-surface text-secondary hover:border-gray-400'
+            }`}>
+            <span className="text-neon-purple"><Icon name={m.icon} size={28} /></span>
+            <div className="text-left">
+              <div className="font-semibold">{m.label}</div>
+              <div className="text-xs text-muted">{m.desc}</div>
+            </div>
+          </button>
+        ))}
+      </div>
+      <p className="text-xs text-muted text-center">
+        Você também pode usar as teclas do teclado: A,W,S,E,D,F,T,G,Y,H,U,J,K,O,L,P
+      </p>
     </div>
   );
 }
@@ -364,13 +448,11 @@ function CalibrateStep({ config, updateConfig, pitch }: StepProps) {
     <div className="flex flex-col gap-4 flex-1">
       <StepHeader icon="target" title="Calibrar" subtitle="Toque várias notas (graves e agudas)" />
 
-      {/* Mic status */}
       <div className={`flex items-center justify-center gap-2 text-sm ${isMicActive ? 'text-neon-emerald' : 'text-neon-rose'}`}>
         <span className={`w-2 h-2 rounded-full ${isMicActive ? 'bg-neon-emerald animate-pulse' : 'bg-neon-rose'}`} />
         {isMicActive ? 'Microfone ativo' : 'Aguardando microfone...'}
       </div>
 
-      {/* Live meter */}
       <div>
         <div className="flex justify-between text-xs text-secondary mb-1">
           <span>Atual: <span className="font-mono">{volDisplay}</span></span>
@@ -419,66 +501,23 @@ function CalibrateStep({ config, updateConfig, pitch }: StepProps) {
   );
 }
 
-function InstrumentStep({ config, updateConfig }: StepProps) {
-  return (
-    <div className="flex flex-col gap-5 flex-1">
-      <StepHeader icon="instrument" title="Seu Instrumento" subtitle="Define a faixa de notas dos exercícios" />
-      <div className="grid grid-cols-2 gap-3 flex-1">
-        {INSTRUMENTS.map((inst) => (
-          <button key={inst.type} onClick={() => updateConfig({ instrument: inst.type })}
-            className={`p-4 rounded-xl flex flex-col items-center gap-2 transition-all ${
-              config.instrument === inst.type
-                ? 'bg-neon-purple/15 border border-neon-purple/50 text-primary'
-                : 'bg-surface-700 border border-surface text-secondary hover:border-gray-400 card-hover'
-            }`}>
-            <span className="text-neon-purple"><Icon name={inst.icon} size={28} /></span>
-            <span className="font-medium text-sm">{inst.label}</span>
-          </button>
-        ))}
-      </div>
-    </div>
-  );
-}
-
-function ClefStep({ config, updateConfig }: StepProps) {
-  const options = [
-    { clef: 'treble' as const, glyph: '𝄞', label: 'Clave de Sol', desc: 'Violino, Flauta, Guitarra', color: 'text-neon-cyan', border: 'border-neon-cyan/50', bg: 'bg-neon-cyan/10' },
-    { clef: 'bass' as const, glyph: '𝄢', label: 'Clave de Fá', desc: 'Baixo, Piano (graves)', color: 'text-neon-purple', border: 'border-neon-purple/50', bg: 'bg-neon-purple/10' },
-  ];
-  return (
-    <div className="flex flex-col gap-5 flex-1">
-      <StepHeader icon="clef" title="Clave" subtitle="A clave que você lê normalmente" />
-      <div className="flex gap-4 flex-1 items-center justify-center">
-        {options.map(({ clef, glyph, label, desc, color, border, bg }) => (
-          <button key={clef} onClick={() => updateConfig({ clef })}
-            className={`flex-1 p-8 rounded-2xl flex flex-col items-center gap-4 transition-all ${
-              config.clef === clef
-                ? `${bg} border-2 ${border} text-primary`
-                : 'bg-surface-700 border border-surface text-secondary hover:border-gray-400 card-hover'
-            }`}>
-            <span className={`text-6xl leading-none ${color}`}>{glyph}</span>
-            <div className="text-center">
-              <div className="font-bold">{label}</div>
-              <div className="text-xs text-muted mt-1">{desc}</div>
-            </div>
-          </button>
-        ))}
-      </div>
-    </div>
-  );
-}
-
 function ReadyStep({ config }: { config: Partial<WizardConfig> }) {
   const inst = INSTRUMENTS.find((i) => i.type === config.instrument);
+  const lvl = LEVELS.find((l) => l.level === config.level);
+  const manualType = MANUAL_TYPES.find((m) => m.type === config.manualType);
   const rows: [string, string, string?][] = [
-    ['Microfone', config.deviceId?.slice(0, 16) + '...'],
-    ['A4', `${config.a4Frequency} Hz`, 'text-neon-cyan'],
-    ['Threshold Volume', config.volumeThreshold ? (config.volumeThreshold * 1000).toFixed(0) : '—', 'text-neon-emerald'],
-    ['Tolerância', `${config.toleranceCents} cents`, 'text-neon-purple'],
-    ['Delay Nota', `${config.noteDelayMs ?? 250}ms`, 'text-neon-cyan'],
     ['Instrumento', inst?.label ?? '—'],
-    ['Clave', config.clef === 'treble' ? 'Sol' : 'Fá'],
+    ['Nível', lvl?.label ?? '—'],
+    ['Entrada', config.inputMode === 'mic' ? 'Microfone' : 'Manual'],
   ];
+  if (config.inputMode === 'manual') {
+    rows.push(['Manual', manualType?.label ?? '—']);
+  } else {
+    rows.push(['A4', `${config.a4Frequency} Hz`, 'text-neon-cyan']);
+    rows.push(['Threshold', config.volumeThreshold ? (config.volumeThreshold * 1000).toFixed(0) : '—', 'text-neon-emerald']);
+    rows.push(['Tolerância', `${config.toleranceCents} cents`, 'text-neon-purple']);
+    rows.push(['Delay', `${config.noteDelayMs ?? 250}ms`, 'text-neon-cyan']);
+  }
   return (
     <div className="flex flex-col gap-4 flex-1">
       <StepHeader icon="check" title="Tudo Pronto!" />

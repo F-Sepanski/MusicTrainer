@@ -15,6 +15,13 @@
     --text-muted: #9ca3af;
     --note-default: #374151;
     --staff-line: #4b5563;
+    /* Instrument/fretboard */
+    --fret-line: #c3c9d4;
+    --fret-nut: #9aa0aa;
+    --fret-dot: #a5abb6;
+    --piano-white: #ffffff;
+    --piano-black: #1a1a26;
+    --piano-key-text: #4b5563;
   }
 
   .dark {
@@ -29,6 +36,13 @@
     --text-muted: #6b7280;
     --note-default: #a0a0b0;
     --staff-line: #9aa0aa;
+    /* Instrument/fretboard */
+    --fret-line: #3a3a4e;
+    --fret-nut: #5a5a70;
+    --fret-dot: #56566c;
+    --piano-white: #f4f5f7;
+    --piano-black: #0a0a0f;
+    --piano-key-text: #4b5563;
   }
 
   body {

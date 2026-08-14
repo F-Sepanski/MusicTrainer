@@ -31,6 +31,14 @@ const INSTRUMENT_ICONS: Record<string, IconName> = {
   other: 'other',
 };
 
+const LEVEL_LABELS: Record<string, string> = {
+  beginner: 'Iniciante',
+  learner: 'Aprendiz',
+  intermediate: 'Intermediário',
+  experienced: 'Experiente',
+  professional: 'Profissional',
+};
+
 export function HomeScreen({ config, history, onStartTraining, onRunWizard, onViewHistory }: Props) {
   const { theme, toggleTheme } = useTheme();
 
@@ -51,6 +59,7 @@ export function HomeScreen({ config, history, onStartTraining, onRunWizard, onVi
 
   const instrumentLabel = config?.instrument ? config.instrument.charAt(0).toUpperCase() + config.instrument.slice(1) : 'Não configurado';
   const instrumentIcon = (config?.instrument && INSTRUMENT_ICONS[config.instrument]) || 'other';
+  const levelLabel = config?.level ? LEVEL_LABELS[config.level] ?? config.level : '';
   const lastSession = history[0];
 
   return (
@@ -88,7 +97,7 @@ export function HomeScreen({ config, history, onStartTraining, onRunWizard, onVi
               </h1>
               <p className="text-secondary mb-6 max-w-md mx-auto">
                 {config
-                  ? `Clave de ${config.clef === 'treble' ? 'Sol' : 'Fá'} · A4 = ${config.a4Frequency}Hz · Tolerância ${config.toleranceCents} cents`
+                  ? `Nível ${levelLabel} · ${config.inputMode === 'mic' ? `A4 = ${config.a4Frequency}Hz` : 'Entrada manual'} · Tolerância ${config.toleranceCents} cents`
                   : 'Configure o app para calibrar seu instrumento e ambiente.'}
               </p>
 

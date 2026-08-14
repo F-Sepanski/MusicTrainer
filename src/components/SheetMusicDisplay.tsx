@@ -15,13 +15,15 @@ interface Props {
   width?: number;
   height?: number;
   theme?: 'dark' | 'light';
+  /** Key signature in fifths (positive sharps, negative flats) */
+  keyFifths?: number;
 }
 
 /**
  * Renders a musical staff with the given notes.
  * Notes change color based on their `status` field.
  */
-export function SheetMusicDisplay({ notes, clef, width = 900, height = 250, theme = 'dark' }: Props) {
+export function SheetMusicDisplay({ notes, clef, width = 900, height = 250, theme = 'dark', keyFifths = 0 }: Props) {
   const containerRef = useRef<HTMLDivElement>(null);
 
   const renderStaff = useCallback(() => {
@@ -44,17 +46,23 @@ export function SheetMusicDisplay({ notes, clef, width = 900, height = 250, them
     const stave = new Stave(10, 40, width - 20);
     stave.addClef(clef).setContext(context).draw();
 
-    // Style the staff lines and clef for visibility in dark mode
+    // Add key signature if not natural
+    if (keyFifths !== 0) {
+      stave.addKeySignature(fifthsToKeySpec(keyFifths)).setContext(context).draw();
+    }
+
+    // Style the staff lines, clef, and key signature for visibility in the current theme
     const svg = container.querySelector('svg');
     if (svg) {
-      svg.querySelectorAll('path, line, rect').forEach((el) => {
-        // Don't touch note-colored elements (handled below)
+      const isBlackish = (v: string | null) =>
+        !v || v === '#000' || v === '#000000' || v === 'black' || v === 'rgb(0,0,0)' || v === '#000000' || /^rgba?\(0\s*,\s*0\s*,\s*0/.test(v ?? '');
+      svg.querySelectorAll('path, line, rect, circle, text, ellipse').forEach((el) => {
         const stroke = el.getAttribute('stroke');
-        if (!stroke || stroke === '#000' || stroke === 'black') {
+        if (isBlackish(stroke)) {
           el.setAttribute('stroke', staffLineColor);
         }
         const fill = el.getAttribute('fill');
-        if (fill && (fill === '#000' || fill === 'black')) {
+        if (isBlackish(fill)) {
           el.setAttribute('fill', staffLineColor);
         }
       });
@@ -93,7 +101,7 @@ export function SheetMusicDisplay({ notes, clef, width = 900, height = 250, them
     new Formatter().joinVoices([voice]).format([voice], width - 60);
 
     voice.draw(context, stave);
-  }, [notes, clef, width, height, theme]);
+  }, [notes, clef, width, height, theme, keyFifths]);
 
   useEffect(() => {
     renderStaff();
@@ -106,4 +114,12 @@ export function SheetMusicDisplay({ notes, clef, width = 900, height = 250, them
       style={{ minHeight: height }}
     />
   );
+}
+
+/** Convert circle-of-fifths value to a VexFlow key spec string. */
+function fifthsToKeySpec(fifths: number): string {
+  const majors = ['C', 'G', 'D', 'A', 'E', 'B', 'F#', 'C#'];
+  const majorsFlat = ['C', 'F', 'Bb', 'Eb', 'Ab', 'Db', 'Gb', 'Cb'];
+  if (fifths >= 0) return `${majors[fifths]}`;
+  return `${majorsFlat[-fifths]}`;
 }

@@ -7,7 +7,7 @@
 
 import { useState, useCallback, useEffect } from 'react';
 import { SetupWizard } from './components/SetupWizard';
-import { ExerciseScreen } from './components/ExerciseScreen';
+import { ChapterTrainingScreen } from './components/ChapterTrainingScreen';
 import { HomeScreen } from './components/HomeScreen';
 import { HistoryScreen } from './components/HistoryScreen';
 import { ThemeProvider } from './theme/ThemeContext';
@@ -66,8 +66,8 @@ export default function App() {
             onViewHistory={handleViewHistory}
           />
         )}
-        {screen === 'training' && (
-          <ExerciseScreen wizardConfig={config} onExit={handleExitTraining} />
+        {screen === 'training' && config && (
+          <ChapterTrainingScreen wizardConfig={config} onExit={handleExitTraining} />
         )}
         {screen === 'history' && (
           <HistoryScreen

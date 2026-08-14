@@ -4,6 +4,10 @@
  * @module types/wizard
  */
 
+export type Level = 'beginner' | 'learner' | 'intermediate' | 'experienced' | 'professional';
+export type InputMode = 'mic' | 'manual';
+export type ManualType = 'guitar' | 'piano' | 'circle';
+
 export interface WizardConfig {
   /** Selected microphone device ID */
   deviceId: string;
@@ -15,10 +19,14 @@ export interface WizardConfig {
   a4Frequency: number;
   /** Selected instrument */
   instrument: InstrumentType;
-  /** Selected clef */
-  clef: 'treble' | 'bass';
   /** Note hold delay in ms before registering as correct */
   noteDelayMs: number;
+  /** User skill level — gates chapter access */
+  level: Level;
+  /** Input method: microphone or manual click/keyboard */
+  inputMode: InputMode;
+  /** Manual input widget type (when inputMode is 'manual') */
+  manualType: ManualType;
 }
 
 export type InstrumentType =
