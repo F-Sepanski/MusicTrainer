@@ -39,6 +39,8 @@ export interface ChapterExercise {
   focusNote?: number;
   /** Key signature for this level (fifths) */
   keyFifths: number;
+  /** If set, dynamically switches key signatures mid-exercise among these fifths values */
+  keyFifthsPool?: number[];
   /** Clef to use ('treble', 'bass', or 'grand') */
   clef: Clef;
   /** MIDI range */
@@ -104,6 +106,267 @@ import { pitchClassToName, type NotationSystem } from '../audio/noteFrequencies'
 /** Map pitch class to its note name (C=0 → 'C' or 'Dó', etc.). */
 export function pitchClassToLetter(pitchClass: number, notation: NotationSystem = 'letters'): string {
   return pitchClassToName(pitchClass, notation, false);
+}
+
+/** Get human readable key name in letters or solfege */
+export function getKeyDisplayName(fifths: number, notation: NotationSystem = 'letters'): string {
+  const mapSolfege: Record<number, string> = {
+    0: 'Dó Maior',
+    1: 'Sol Maior (1♯)',
+    2: 'Ré Maior (2♯)',
+    3: 'Lá Maior (3♯)',
+    4: 'Mi Maior (4♯)',
+    5: 'Si Maior (5♯)',
+    6: 'Fá♯ Maior (6♯)',
+    7: 'Dó♯ Maior (7♯)',
+    [-1]: 'Fá Maior (1♭)',
+    [-2]: 'Si♭ Maior (2♭)',
+    [-3]: 'Mi♭ Maior (3♭)',
+    [-4]: 'Lá♭ Maior (4♭)',
+    [-5]: 'Ré♭ Maior (5♭)',
+    [-6]: 'Sol♭ Maior (6♭)',
+    [-7]: 'Dó♭ Maior (7♭)',
+  };
+
+  const mapLetters: Record<number, string> = {
+    0: 'C Major',
+    1: 'G Major (1#)',
+    2: 'D Major (2#)',
+    3: 'A Major (3#)',
+    4: 'E Major (4#)',
+    5: 'B Major (5#)',
+    6: 'F# Major (6#)',
+    7: 'C# Major (7#)',
+    [-1]: 'F Major (1b)',
+    [-2]: 'Bb Major (2b)',
+    [-3]: 'Eb Major (3b)',
+    [-4]: 'Ab Major (4b)',
+    [-5]: 'Db Major (5b)',
+    [-6]: 'Gb Major (6b)',
+    [-7]: 'Cb Major (7b)',
+  };
+
+  return notation === 'solfege'
+    ? (mapSolfege[fifths] ?? `${fifths} acidentes`)
+    : (mapLetters[fifths] ?? `${fifths} fifths`);
+}
+
+/** Pitch classes for all 15 major diatonic keys (-7 to 7) */
+export const KEY_DIATONIC_POOLS: Record<number, number[]> = {
+  0: [0, 2, 4, 5, 7, 9, 11], // C
+  1: [7, 9, 11, 0, 2, 4, 6], // G (F#)
+  2: [2, 4, 6, 7, 9, 11, 1], // D (F#, C#)
+  3: [9, 11, 1, 2, 4, 6, 8], // A (F#, C#, G#)
+  4: [4, 6, 8, 9, 11, 1, 3], // E (F#, C#, G#, D#)
+  5: [11, 1, 3, 4, 6, 8, 10], // B (F#, C#, G#, D#, A#)
+  6: [6, 8, 10, 11, 1, 3, 5], // F# (F#, C#, G#, D#, A#, E#)
+  7: [1, 3, 5, 6, 8, 10, 0], // C# (F#, C#, G#, D#, A#, E#, B#)
+  [-1]: [5, 7, 9, 10, 0, 2, 4], // F (Bb)
+  [-2]: [10, 0, 2, 3, 5, 7, 9], // Bb (Bb, Eb)
+  [-3]: [3, 5, 7, 8, 10, 0, 2], // Eb (Bb, Eb, Ab)
+  [-4]: [8, 10, 0, 1, 3, 5, 7], // Ab (Bb, Eb, Ab, Db)
+  [-5]: [1, 3, 5, 6, 8, 10, 0], // Db (Bb, Eb, Ab, Db, Gb)
+  [-6]: [6, 8, 10, 11, 1, 3, 5], // Gb (Bb, Eb, Ab, Db, Gb, Cb)
+  [-7]: [11, 1, 3, 4, 6, 8, 10], // Cb (Bb, Eb, Ab, Db, Gb, Cb, Fb)
+};
+
+/** Build all 18 progressive key signature levels (7 sharps + 7 flats + 4 mixed mid-exercise levels) */
+function buildKeySignatureExercises(
+  prefix: string,
+  clef: Clef,
+  range: { min: number; max: number }
+): ChapterExercise[] {
+  return [
+    // ── Sustenidos (1# a 7#) ──
+    {
+      id: `${prefix}-n1`,
+      level: 1,
+      title: 'Sol Maior (1♯)',
+      description: '1 sustenido na armadura: Fá♯',
+      pool: KEY_DIATONIC_POOLS[1],
+      keyFifths: 1,
+      clef,
+      range,
+    },
+    {
+      id: `${prefix}-n2`,
+      level: 2,
+      title: 'Ré Maior (2♯)',
+      description: '2 sustenidos na armadura: Fá♯, Dó♯',
+      pool: KEY_DIATONIC_POOLS[2],
+      keyFifths: 2,
+      clef,
+      range,
+    },
+    {
+      id: `${prefix}-n3`,
+      level: 3,
+      title: 'Lá Maior (3♯)',
+      description: '3 sustenidos na armadura: Fá♯, Dó♯, Sol♯',
+      pool: KEY_DIATONIC_POOLS[3],
+      keyFifths: 3,
+      clef,
+      range,
+    },
+    {
+      id: `${prefix}-n4`,
+      level: 4,
+      title: 'Mi Maior (4♯)',
+      description: '4 sustenidos na armadura: Fá♯, Dó♯, Sol♯, Ré♯',
+      pool: KEY_DIATONIC_POOLS[4],
+      keyFifths: 4,
+      clef,
+      range,
+    },
+    {
+      id: `${prefix}-n5`,
+      level: 5,
+      title: 'Si Maior (5♯)',
+      description: '5 sustenidos na armadura: Fá♯, Dó♯, Sol♯, Ré♯, Lá♯',
+      pool: KEY_DIATONIC_POOLS[5],
+      keyFifths: 5,
+      clef,
+      range,
+    },
+    {
+      id: `${prefix}-n6`,
+      level: 6,
+      title: 'Fá♯ Maior (6♯)',
+      description: '6 sustenidos na armadura: Fá♯, Dó♯, Sol♯, Ré♯, Lá♯, Mi♯',
+      pool: KEY_DIATONIC_POOLS[6],
+      keyFifths: 6,
+      clef,
+      range,
+    },
+    {
+      id: `${prefix}-n7`,
+      level: 7,
+      title: 'Dó♯ Maior (7♯)',
+      description: '7 sustenidos na armadura: Fá♯, Dó♯, Sol♯, Ré♯, Lá♯, Mi♯, Si♯',
+      pool: KEY_DIATONIC_POOLS[7],
+      keyFifths: 7,
+      clef,
+      range,
+    },
+
+    // ── Bemóis (1♭ a 7♭) ──
+    {
+      id: `${prefix}-n8`,
+      level: 8,
+      title: 'Fá Maior (1♭)',
+      description: '1 bemol na armadura: Si♭',
+      pool: KEY_DIATONIC_POOLS[-1],
+      keyFifths: -1,
+      clef,
+      range,
+    },
+    {
+      id: `${prefix}-n9`,
+      level: 9,
+      title: 'Si♭ Maior (2♭)',
+      description: '2 bemóis na armadura: Si♭, Mi♭',
+      pool: KEY_DIATONIC_POOLS[-2],
+      keyFifths: -2,
+      clef,
+      range,
+    },
+    {
+      id: `${prefix}-n10`,
+      level: 10,
+      title: 'Mi♭ Maior (3♭)',
+      description: '3 bemóis na armadura: Si♭, Mi♭, Lá♭',
+      pool: KEY_DIATONIC_POOLS[-3],
+      keyFifths: -3,
+      clef,
+      range,
+    },
+    {
+      id: `${prefix}-n11`,
+      level: 11,
+      title: 'Lá♭ Maior (4♭)',
+      description: '4 bemóis na armadura: Si♭, Mi♭, Lá♭, Ré♭',
+      pool: KEY_DIATONIC_POOLS[-4],
+      keyFifths: -4,
+      clef,
+      range,
+    },
+    {
+      id: `${prefix}-n12`,
+      level: 12,
+      title: 'Ré♭ Maior (5♭)',
+      description: '5 bemóis na armadura: Si♭, Mi♭, Lá♭, Ré♭, Sol♭',
+      pool: KEY_DIATONIC_POOLS[-5],
+      keyFifths: -5,
+      clef,
+      range,
+    },
+    {
+      id: `${prefix}-n13`,
+      level: 13,
+      title: 'Sol♭ Maior (6♭)',
+      description: '6 bemóis na armadura: Si♭, Mi♭, Lá♭, Ré♭, Sol♭, Dó♭',
+      pool: KEY_DIATONIC_POOLS[-6],
+      keyFifths: -6,
+      clef,
+      range,
+    },
+    {
+      id: `${prefix}-n14`,
+      level: 14,
+      title: 'Dó♭ Maior (7♭)',
+      description: '7 bemóis na armadura: Si♭, Mi♭, Lá♭, Ré♭, Sol♭, Dó♭, Fá♭',
+      pool: KEY_DIATONIC_POOLS[-7],
+      keyFifths: -7,
+      clef,
+      range,
+    },
+
+    // ── Subparte Final: Troca Mista Dinâmica no Meio do Exercício ──
+    {
+      id: `${prefix}-n15`,
+      level: 15,
+      title: 'Misto até 3 Acidentes',
+      description: 'Troca de armadura no meio do exercício (Sol, Ré, Lá, Fá, Si♭, Mi♭)',
+      pool: CHROMATIC_MIDI,
+      keyFifths: 1,
+      keyFifthsPool: [1, 2, 3, -1, -2, -3],
+      clef,
+      range,
+    },
+    {
+      id: `${prefix}-n16`,
+      level: 16,
+      title: 'Misto até 4 Acidentes',
+      description: 'Troca de armadura no meio do exercício com até 4 acidentes (inclui Mi e Lá♭ Maior)',
+      pool: CHROMATIC_MIDI,
+      keyFifths: 2,
+      keyFifthsPool: [1, 2, 3, 4, -1, -2, -3, -4],
+      clef,
+      range,
+    },
+    {
+      id: `${prefix}-n17`,
+      level: 17,
+      title: 'Misto até 5 Acidentes',
+      description: 'Troca de armadura no meio do exercício com até 5 acidentes (inclui Si e Ré♭ Maior)',
+      pool: CHROMATIC_MIDI,
+      keyFifths: 3,
+      keyFifthsPool: [1, 2, 3, 4, 5, -1, -2, -3, -4, -5],
+      clef,
+      range,
+    },
+    {
+      id: `${prefix}-n18`,
+      level: 18,
+      title: 'Misto até 6 e 7 Acidentes',
+      description: 'Desafio mestre com troca contínua entre todas as 14 armaduras do círculo de quintas',
+      pool: CHROMATIC_MIDI,
+      keyFifths: 4,
+      keyFifthsPool: [1, 2, 3, 4, 5, 6, 7, -1, -2, -3, -4, -5, -6, -7],
+      clef,
+      range,
+    },
+  ];
 }
 
 /** Natural note MIDI pitch classes (white keys). */
@@ -222,19 +485,10 @@ function buildCourse1Treble(notation: NotationSystem): Chapter[] {
     index: 4,
     title: 'Armaduras de Clave',
     icon: 'keys',
-    description: 'Identificar notas alteradas indiretamente através da armadura no início da pauta.',
+    description: 'Identificar notas alteradas indiretamente através da armadura no início da pauta e transições de tonalidade.',
     clef: 'treble',
     range: { min: C4, max: G5 },
-    exercises: [
-      { id: 'c1-ch4-n1', level: 1, title: '1 Acidente', description: 'Sol Maior (F#) e Fá Maior (Bb)', pool: [0, 2, 4, 5, 6, 7, 9, 10, 11], keyFifths: 1, clef: 'treble', range: { min: 60, max: 79 } },
-      { id: 'c1-ch4-n2', level: 2, title: '2 Acidentes', description: 'Ré Maior (F#, C#) e Si♭ Maior (Bb, Eb)', pool: [0, 1, 2, 3, 4, 5, 6, 7, 9, 11], keyFifths: 2, clef: 'treble', range: { min: 60, max: 79 } },
-      { id: 'c1-ch4-n3', level: 3, title: '3 Acidentes', description: 'Lá Maior e Mi♭ Maior', pool: [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 11], keyFifths: 3, clef: 'treble', range: { min: 60, max: 79 } },
-      { id: 'c1-ch4-n4', level: 4, title: '4 Acidentes', description: 'Mi Maior e Lá♭ Maior', pool: [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11], keyFifths: 4, clef: 'treble', range: { min: 60, max: 79 } },
-      { id: 'c1-ch4-n5', level: 5, title: '5 Acidentes', description: 'Si Maior (5#) e Ré♭ Maior (5♭)', pool: [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11], keyFifths: 5, clef: 'treble', range: { min: 60, max: 79 } },
-      { id: 'c1-ch4-n6', level: 6, title: '6 Acidentes', description: 'Fá♯ Maior (6#) e Sol♭ Maior (6♭)', pool: [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11], keyFifths: 6, clef: 'treble', range: { min: 60, max: 79 } },
-      { id: 'c1-ch4-n7', level: 7, title: '7 Acidentes', description: 'Dó♯ Maior (7#) e Dó♭ Maior (7♭)', pool: [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11], keyFifths: 7, clef: 'treble', range: { min: 60, max: 79 } },
-      { id: 'c1-ch4-n8', level: 8, title: 'Mestre das Armaduras', description: 'Armaduras aleatórias de 1 a 7 acidentes (círculo de quintas completo)', pool: [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11], keyFifths: 5, clef: 'treble', range: { min: 60, max: 79 } },
-    ],
+    exercises: buildKeySignatureExercises('c1-ch4', 'treble', { min: C4, max: G5 }),
   });
 
   return chapters;
@@ -324,19 +578,10 @@ function buildCourse2Bass(notation: NotationSystem): Chapter[] {
     index: 4,
     title: 'Armaduras de Clave',
     icon: 'keys',
-    description: 'Aplicação de regras de tonalidade no contexto da Clave de Fá.',
+    description: 'Aplicação de regras de tonalidade no contexto da Clave de Fá e transições de armadura.',
     clef: 'bass',
     range: { min: 41, max: 60 },
-    exercises: [
-      { id: 'c2-ch4-n1', level: 1, title: '1 Acidente', description: 'Sol Maior (F#) e Fá Maior (Bb)', pool: [0, 2, 4, 5, 6, 7, 9, 10, 11], keyFifths: 1, clef: 'bass', range: { min: 41, max: 60 } },
-      { id: 'c2-ch4-n2', level: 2, title: '2 Acidentes', description: 'Ré Maior e Si♭ Maior', pool: [0, 1, 2, 3, 4, 5, 6, 7, 9, 11], keyFifths: 2, clef: 'bass', range: { min: 41, max: 60 } },
-      { id: 'c2-ch4-n3', level: 3, title: '3 Acidentes', description: 'Lá Maior e Mi♭ Maior', pool: [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 11], keyFifths: 3, clef: 'bass', range: { min: 41, max: 60 } },
-      { id: 'c2-ch4-n4', level: 4, title: '4 Acidentes', description: 'Mi Maior e Lá♭ Maior', pool: [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11], keyFifths: 4, clef: 'bass', range: { min: 41, max: 60 } },
-      { id: 'c2-ch4-n5', level: 5, title: '5 Acidentes', description: 'Si Maior (5#) e Ré♭ Maior (5♭)', pool: [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11], keyFifths: 5, clef: 'bass', range: { min: 41, max: 60 } },
-      { id: 'c2-ch4-n6', level: 6, title: '6 Acidentes', description: 'Fá♯ Maior (6#) e Sol♭ Maior (6♭)', pool: [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11], keyFifths: 6, clef: 'bass', range: { min: 41, max: 60 } },
-      { id: 'c2-ch4-n7', level: 7, title: '7 Acidentes', description: 'Dó♯ Maior (7#) e Dó♭ Maior (7♭)', pool: [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11], keyFifths: 7, clef: 'bass', range: { min: 41, max: 60 } },
-      { id: 'c2-ch4-n8', level: 8, title: 'Mestre das Armaduras', description: 'Armaduras aleatórias de 1 a 7 acidentes na Clave de Fá', pool: [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11], keyFifths: 5, clef: 'bass', range: { min: 41, max: 60 } },
-    ],
+    exercises: buildKeySignatureExercises('c2-ch4', 'bass', { min: 41, max: 60 }),
   });
 
   return chapters;
@@ -445,16 +690,10 @@ function buildCourse3Grand(): Chapter[] {
     index: 5,
     title: 'Armaduras de Clave no Sistema Duplo',
     icon: 'keys',
-    description: 'Leitura simultânea com armaduras no início das duas pautas.',
+    description: 'Leitura simultânea com armaduras nas duas pautas e transições dinâmicas de armadura.',
     clef: 'grand',
     range: { min: 41, max: 79 },
-    exercises: [
-      { id: 'c3-ch5-n1', level: 1, title: '1 Acidente', description: 'Sol Maior (1#) e Fá Maior (1♭)', pool: [0, 2, 4, 5, 6, 7, 9, 10, 11], keyFifths: 1, clef: 'grand', range: { min: 41, max: 79 } },
-      { id: 'c3-ch5-n2', level: 2, title: '2 Acidentes', description: 'Ré Maior (2#) e Si♭ Maior (2♭)', pool: [0, 1, 2, 3, 4, 5, 6, 7, 9, 11], keyFifths: 2, clef: 'grand', range: { min: 41, max: 79 } },
-      { id: 'c3-ch5-n3', level: 3, title: '3 e 4 Acidentes', description: 'Lá/Mi Maior e Mi♭/Lá♭ Maior', pool: [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11], keyFifths: 3, clef: 'grand', range: { min: 41, max: 79 } },
-      { id: 'c3-ch5-n4', level: 4, title: '5 a 7 Acidentes', description: 'Si/Fá#/Dó# Maior e Ré♭/Sol♭/Dó♭ Maior', pool: [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11], keyFifths: 5, clef: 'grand', range: { min: 41, max: 79 } },
-      { id: 'c3-ch5-n5', level: 5, title: 'Mix Geral: Armaduras + Suplementares', description: 'Armaduras com notas suplementares em ambas as claves', pool: [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11], keyFifths: 3, clef: 'grand', range: { min: 35, max: 86 }, hasAccidentals: true, accidentalType: 'mixed' },
-    ],
+    exercises: buildKeySignatureExercises('c3-ch5', 'grand', { min: 41, max: 79 }),
   });
 
   // Capítulo 6: Desafio Master

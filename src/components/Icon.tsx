@@ -68,7 +68,11 @@ export type IconName =
   | 'keyboard'
   | 'lock'
   | 'palette'
-  | 'eraser';
+  | 'eraser'
+  | 'keys'
+  | 'sharp'
+  | 'treble'
+  | 'bass';
 
 const ICONS: Record<IconName, IconDefinition> = {
   play: faPlay,
@@ -105,6 +109,10 @@ const ICONS: Record<IconName, IconDefinition> = {
   lock: faLock,
   palette: faPalette,
   eraser: faEraser,
+  keys: faMusic,
+  sharp: faMusic,
+  treble: faMusic,
+  bass: faMusic,
 };
 
 interface IconProps {

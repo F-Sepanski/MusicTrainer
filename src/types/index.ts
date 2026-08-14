@@ -31,6 +31,10 @@ export interface ExerciseNote {
   clef?: 'treble' | 'bass';
   /** Whether this note has been played correctly */
   status: 'pending' | 'active' | 'correct' | 'incorrect';
+  /** Key signature fifths active for this specific note (-7 to 7) */
+  keyFifths?: number;
+  /** Whether this note marks the start of a key signature change */
+  isKeyChange?: boolean;
 }
 
 export interface ExerciseConfig {

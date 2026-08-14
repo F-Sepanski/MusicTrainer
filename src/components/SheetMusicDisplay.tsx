@@ -16,8 +16,9 @@
  */
 
 import { useEffect, useRef, useState, useMemo, useCallback } from 'react';
-import { Stave, StaveNote, Voice, Formatter, Renderer, Accidental, Annotation, GhostNote } from 'vexflow';
+import { Stave, StaveNote, Voice, Formatter, Renderer, Accidental, Annotation, GhostNote, KeySignature } from 'vexflow';
 import { midiToNoteName, type NotationSystem } from '../audio/noteFrequencies';
+import { fifthsToAccidentals, getKeyDisplayName } from '../exercise/curriculum';
 import type { ExerciseNote } from '../types';
 
 interface Props {
@@ -32,7 +33,7 @@ interface Props {
   octaveShift?: number;
 }
 
-const NOTE_SPACING = 85;
+const NOTE_SPACING = 105;
 
 export function SheetMusicDisplay({
   notes,
@@ -50,6 +51,7 @@ export function SheetMusicDisplay({
 
   const [containerWidth, setContainerWidth] = useState<number>(900);
   const [noteOffsets, setNoteOffsets] = useState<number[]>([]);
+  const [keyFadeOpacity, setKeyFadeOpacity] = useState<number>(1);
 
   // Track root width responsively
   useEffect(() => {
@@ -80,10 +82,46 @@ export function SheetMusicDisplay({
     return Math.max(0, notes.length - 1);
   }, [notes, propActiveIndex]);
 
+  // Current key signature active at the current reading position
+  const currentKeyFifths = useMemo(() => {
+    const activeNote = notes[activeIndex];
+    if (activeNote && typeof activeNote.keyFifths === 'number') {
+      return activeNote.keyFifths;
+    }
+    return keyFifths ?? 0;
+  }, [notes, activeIndex, keyFifths]);
+
+  // Trigger smooth crossfade when key signature changes at the clef
+  const prevKeyFifthsRef = useRef(currentKeyFifths);
+  useEffect(() => {
+    if (prevKeyFifthsRef.current !== currentKeyFifths) {
+      prevKeyFifthsRef.current = currentKeyFifths;
+      setKeyFadeOpacity(0.25);
+      const t = setTimeout(() => {
+        setKeyFadeOpacity(1);
+      }, 150);
+      return () => clearTimeout(t);
+    }
+  }, [currentKeyFifths]);
+
+  // Calculate key signature transition points across the exercise
+  const keyChanges = useMemo(() => {
+    const changes: { index: number; keyFifths: number }[] = [];
+    for (let i = 1; i < notes.length; i++) {
+      const prevKey: number = typeof notes[i - 1].keyFifths === 'number' ? (notes[i - 1].keyFifths as number) : (keyFifths ?? 0);
+      const currKey: number = typeof notes[i].keyFifths === 'number' ? (notes[i].keyFifths as number) : (keyFifths ?? 0);
+      if (notes[i].isKeyChange || currKey !== prevKey) {
+        changes.push({ index: i, keyFifths: currKey });
+      }
+    }
+    return changes;
+  }, [notes, keyFifths]);
+
   // Width of clef + key signature area on the left
   const clefWidth = useMemo(() => {
-    return Math.max(85, 70 + Math.abs(keyFifths) * 16);
-  }, [keyFifths]);
+    const maxFifths = Math.max(Math.abs(keyFifths), Math.abs(currentKeyFifths), 1);
+    return Math.max(90, 70 + maxFifths * 15);
+  }, [keyFifths, currentKeyFifths]);
 
   // Target position for the active note: centered around 35-38% of container width
   const targetX = useMemo(() => {
@@ -106,7 +144,7 @@ export function SheetMusicDisplay({
   }, [staveY]);
 
   const totalNotesWidth = useMemo(() => {
-    return Math.max(containerWidth + 400, targetX + notes.length * NOTE_SPACING + 200);
+    return Math.max(containerWidth + 400, targetX + notes.length * (NOTE_SPACING + 15) + 300);
   }, [containerWidth, targetX, notes.length]);
 
   /* ── 1. Render Background Stave with Clef + Key Sig + Continuous Staff Lines ── */
@@ -127,12 +165,12 @@ export function SheetMusicDisplay({
       // Grand staff: treble stave on top, bass stave below.
       const trebleStave = new Stave(10, trebleStaveY, Math.max(100, containerWidth - 20));
       trebleStave.addClef('treble');
-      if (keyFifths !== 0) trebleStave.addKeySignature(fifthsToKeySpec(keyFifths));
+      if (currentKeyFifths !== 0) trebleStave.addKeySignature(fifthsToKeySpec(currentKeyFifths));
       trebleStave.setContext(bgCtx).draw();
 
       const bassStave = new Stave(10, bassStaveY, Math.max(100, containerWidth - 20));
       bassStave.addClef('bass');
-      if (keyFifths !== 0) bassStave.addKeySignature(fifthsToKeySpec(keyFifths));
+      if (currentKeyFifths !== 0) bassStave.addKeySignature(fifthsToKeySpec(currentKeyFifths));
       bassStave.setContext(bgCtx).draw();
     } else {
       const stave = new Stave(10, staveY, Math.max(100, containerWidth - 20));
@@ -143,17 +181,17 @@ export function SheetMusicDisplay({
       } else {
         stave.addClef(clef);
       }
-      if (keyFifths !== 0) {
-        stave.addKeySignature(fifthsToKeySpec(keyFifths));
+      if (currentKeyFifths !== 0) {
+        stave.addKeySignature(fifthsToKeySpec(currentKeyFifths));
       }
       stave.setContext(bgCtx).draw();
     }
 
     normalizeSvg(bgEl);
     applyStaffTheme(bgEl, staffLineColor, symbolColor);
-  }, [clef, keyFifths, containerWidth, height, staveY, theme, octaveShift, trebleStaveY, bassStaveY]);
+  }, [clef, currentKeyFifths, containerWidth, height, staveY, theme, octaveShift, trebleStaveY, bassStaveY]);
 
-  /* ── 2. Render Notes on Shared Coordinate System ─────────── */
+  /* ── 2. Render Notes on Shared Coordinate System with In-Staff Key Changes ─── */
   const renderNotes = useCallback(() => {
     const notesEl = notesContainerRef.current;
     if (!notesEl || notes.length === 0) return;
@@ -161,6 +199,7 @@ export function SheetMusicDisplay({
 
     const defaultNoteColor = getCssVar('--note-default', theme === 'dark' ? '#cbd5e1' : '#475569');
     const staffLineColor = getCssVar('--staff-line', theme === 'dark' ? '#9aa0aa' : '#4b5563');
+    const symbolColor = getCssVar('--text-primary', theme === 'dark' ? '#f1f5f9' : '#0f172a');
     const statusColors = getStatusColors();
 
     const notesR = new Renderer(notesEl, Renderer.Backends.SVG);
@@ -174,9 +213,20 @@ export function SheetMusicDisplay({
         duration: 'q',
       });
 
+      const noteKeyFifths = typeof note.keyFifths === 'number' ? note.keyFifths : currentKeyFifths;
+      const keyAccidentals = fifthsToAccidentals(noteKeyFifths);
+
       const keyPart = note.vfKey.split('/')[0] || '';
+      const noteLetter = (keyPart[0] || '').toUpperCase();
       const acc = keyPart.slice(1);
-      if (acc) {
+
+      // Determine if this accidental is ALREADY part of the note's active key signature
+      const isKeySharp = noteKeyFifths > 0 && acc === '#' && keyAccidentals.includes(noteLetter);
+      const isKeyFlat = noteKeyFifths < 0 && acc === 'b' && keyAccidentals.includes(noteLetter);
+      const isCoveredByKeySignature = isKeySharp || isKeyFlat;
+
+      // OMIT visual accidental modifier if the accidental is covered by the key signature!
+      if (acc && !isCoveredByKeySignature) {
         sn.addModifier(new Accidental(acc), 0);
       }
 
@@ -186,7 +236,7 @@ export function SheetMusicDisplay({
         color = statusColors.success;
       } else if (note.status === 'incorrect') {
         color = statusColors.error;
-        const isSharp = keyPart.includes('#');
+        const isSharp = acc === '#' || (noteKeyFifths > 0 && keyAccidentals.includes(noteLetter));
         const noteLabel = midiToNoteName(note.midiNote, notation, isSharp);
         const ann = new Annotation(noteLabel);
         ann.setVerticalJustification(Annotation.VerticalJustify.BOTTOM);
@@ -207,69 +257,139 @@ export function SheetMusicDisplay({
       return sn;
     };
 
-    let offsets: number[] = [];
+    // Group notes into contiguous key signature sections
+    interface NoteSection {
+      startIndex: number;
+      notes: ExerciseNote[];
+      keyFifths: number;
+      isInitial: boolean;
+    }
+
+    const sections: NoteSection[] = [];
+    let curSec: NoteSection | null = null;
+
+    notes.forEach((note, idx) => {
+      const noteKey = typeof note.keyFifths === 'number' ? note.keyFifths : (keyFifths ?? 0);
+      const isTransition = idx > 0 && (note.isKeyChange || (notes[idx - 1] && noteKey !== (notes[idx - 1].keyFifths ?? keyFifths ?? 0)));
+      if (!curSec || isTransition) {
+        curSec = {
+          startIndex: idx,
+          notes: [note],
+          keyFifths: noteKey,
+          isInitial: idx === 0,
+        };
+        sections.push(curSec);
+      } else {
+        curSec.notes.push(note);
+      }
+    });
+
+    const offsets: number[] = new Array(notes.length);
+    let currentStartX = targetX;
 
     if (clef === 'grand') {
-      const trebleStave = new Stave(targetX, trebleStaveY, notes.length * NOTE_SPACING);
-      trebleStave.setContext(notesCtx);
+      sections.forEach((sec) => {
+        const accCount = Math.abs(sec.keyFifths);
+        const keySigPadding = !sec.isInitial && sec.keyFifths !== 0 ? Math.max(35, accCount * 14 + 30) : (!sec.isInitial ? 20 : 0);
+        const secWidth = Math.max(90, sec.notes.length * NOTE_SPACING + keySigPadding);
 
-      const bassStave = new Stave(targetX, bassStaveY, notes.length * NOTE_SPACING);
-      bassStave.setContext(notesCtx);
+        const trebleStave = new Stave(currentStartX, trebleStaveY, secWidth);
+        const bassStave = new Stave(currentStartX, bassStaveY, secWidth);
+        trebleStave.setContext(notesCtx);
+        bassStave.setContext(notesCtx);
 
-      const trebleTickables: (StaveNote | GhostNote)[] = [];
-      const bassTickables: (StaveNote | GhostNote)[] = [];
-
-      notes.forEach((note, i) => {
-        const noteClef = note.clef ?? (note.midiNote >= 60 ? 'treble' : 'bass');
-        if (noteClef === 'treble') {
-          trebleTickables.push(createStaveNote(note, 'treble', i));
-          bassTickables.push(new GhostNote({ duration: 'q' }));
-        } else {
-          trebleTickables.push(new GhostNote({ duration: 'q' }));
-          bassTickables.push(createStaveNote(note, 'bass', i));
+        if (!sec.isInitial) {
+          trebleStave.setBegBarType(1); // Double Barline
+          bassStave.setBegBarType(1);
+          if (sec.keyFifths !== 0) {
+            trebleStave.addKeySignature(fifthsToKeySpec(sec.keyFifths));
+            bassStave.addKeySignature(fifthsToKeySpec(sec.keyFifths));
+          }
         }
-      });
 
-      const trebleVoice = new Voice({ numBeats: notes.length, beatValue: 4 }).setStrict(false);
-      trebleVoice.addTickables(trebleTickables);
+        trebleStave.draw();
+        bassStave.draw();
 
-      const bassVoice = new Voice({ numBeats: notes.length, beatValue: 4 }).setStrict(false);
-      bassVoice.addTickables(bassTickables);
+        const trebleTickables: (StaveNote | GhostNote)[] = [];
+        const bassTickables: (StaveNote | GhostNote)[] = [];
 
-      new Formatter()
-        .joinVoices([trebleVoice])
-        .joinVoices([bassVoice])
-        .format([trebleVoice, bassVoice], notes.length * NOTE_SPACING);
+        sec.notes.forEach((note, i) => {
+          const globalIdx = sec.startIndex + i;
+          const noteClef = note.clef ?? (note.midiNote >= 60 ? 'treble' : 'bass');
+          if (noteClef === 'treble') {
+            trebleTickables.push(createStaveNote(note, 'treble', globalIdx));
+            bassTickables.push(new GhostNote({ duration: 'q' }));
+          } else {
+            trebleTickables.push(new GhostNote({ duration: 'q' }));
+            bassTickables.push(createStaveNote(note, 'bass', globalIdx));
+          }
+        });
 
-      trebleVoice.draw(notesCtx, trebleStave);
-      bassVoice.draw(notesCtx, bassStave);
+        const trebleVoice = new Voice({ numBeats: sec.notes.length, beatValue: 4 }).setStrict(false);
+        trebleVoice.addTickables(trebleTickables);
 
-      offsets = notes.map((note, i) => {
-        const noteClef = note.clef ?? (note.midiNote >= 60 ? 'treble' : 'bass');
-        const tickable = noteClef === 'treble' ? trebleTickables[i] : bassTickables[i];
-        return tickable.getAbsoluteX();
+        const bassVoice = new Voice({ numBeats: sec.notes.length, beatValue: 4 }).setStrict(false);
+        bassVoice.addTickables(bassTickables);
+
+        new Formatter()
+          .joinVoices([trebleVoice])
+          .joinVoices([bassVoice])
+          .formatToStave([trebleVoice, bassVoice], trebleStave);
+
+        trebleVoice.draw(notesCtx, trebleStave);
+        bassVoice.draw(notesCtx, bassStave);
+
+        sec.notes.forEach((note, i) => {
+          const globalIdx = sec.startIndex + i;
+          const noteClef = note.clef ?? (note.midiNote >= 60 ? 'treble' : 'bass');
+          const tickable = noteClef === 'treble' ? trebleTickables[i] : bassTickables[i];
+          offsets[globalIdx] = tickable.getAbsoluteX();
+        });
+
+        currentStartX += secWidth;
       });
     } else {
-      const groupStave = new Stave(targetX, staveY, notes.length * NOTE_SPACING);
-      groupStave.setContext(notesCtx);
+      sections.forEach((sec) => {
+        const accCount = Math.abs(sec.keyFifths);
+        const keySigPadding = !sec.isInitial && sec.keyFifths !== 0 ? Math.max(35, accCount * 14 + 30) : (!sec.isInitial ? 20 : 0);
+        const secWidth = Math.max(90, sec.notes.length * NOTE_SPACING + keySigPadding);
 
-      const sns = notes.map((note, i) => createStaveNote(note, clef, i));
+        const stave = new Stave(currentStartX, staveY, secWidth);
+        stave.setContext(notesCtx);
 
-      const voice = new Voice({ numBeats: notes.length, beatValue: 4 });
-      voice.setStrict(false);
-      voice.addTickables(sns);
+        if (!sec.isInitial) {
+          stave.setBegBarType(1); // Double Barline
+          if (sec.keyFifths !== 0) {
+            stave.addKeySignature(fifthsToKeySpec(sec.keyFifths));
+          }
+        }
 
-      new Formatter().joinVoices([voice]).format([voice], notes.length * NOTE_SPACING);
-      voice.draw(notesCtx, groupStave);
+        stave.draw();
 
-      offsets = sns.map((sn) => sn.getAbsoluteX());
+        const sns = sec.notes.map((n, i) => createStaveNote(n, clef, sec.startIndex + i));
+        const voice = new Voice({ numBeats: sec.notes.length, beatValue: 4 }).setStrict(false);
+        voice.addTickables(sns);
+
+        new Formatter().joinVoices([voice]).formatToStave([voice], stave);
+        voice.draw(notesCtx, stave);
+
+        sec.notes.forEach((_, i) => {
+          const globalIdx = sec.startIndex + i;
+          offsets[globalIdx] = sns[i].getAbsoluteX();
+        });
+
+        currentStartX += secWidth;
+      });
     }
 
     normalizeSvg(notesEl);
 
+    // Apply uniform theme coloring to staves, double barlines, key signatures, and full note stems/noteheads
+    applySheetColors(notesEl, notes, activeIndex, staffLineColor, symbolColor, defaultNoteColor, statusColors);
+
     // Extract exact rendered X positions of all notes to ensure zero drift
     setNoteOffsets(offsets);
-  }, [notes, clef, activeIndex, targetX, totalNotesWidth, height, staveY, theme, notation, trebleStaveY, bassStaveY]);
+  }, [notes, clef, activeIndex, currentKeyFifths, targetX, totalNotesWidth, height, staveY, theme, notation, trebleStaveY, bassStaveY]);
 
   useEffect(() => {
     renderBackground();
@@ -300,6 +420,15 @@ export function SheetMusicDisplay({
 
   const accentColor = getCssVar('--neon-cyan', getCssVar('--accent', '#38bdf8'));
 
+  // Calculate divider position between notes for key signature changes
+  const getDividerX = (changeIndex: number) => {
+    if (noteOffsets[changeIndex] !== undefined && noteOffsets[changeIndex - 1] !== undefined) {
+      return (noteOffsets[changeIndex - 1] + noteOffsets[changeIndex]) / 2;
+    }
+    const baseX = noteOffsets[0] ?? targetX;
+    return baseX + (changeIndex - 0.5) * NOTE_SPACING;
+  };
+
   return (
     <div
       ref={rootRef}
@@ -314,8 +443,8 @@ export function SheetMusicDisplay({
       {/* ── Layer 1: Unified Full-Width Stave (Clef + Key Signature + Continuous Staff Lines) ── */}
       <div
         ref={bgRef}
-        className="absolute inset-0 pointer-events-none"
-        style={{ height }}
+        className="absolute inset-0 pointer-events-none transition-opacity duration-300 ease-out"
+        style={{ height, opacity: keyFadeOpacity }}
       />
 
       {/* ── Layer 1.5: Target Note Background Accent (10% subtle highlight behind active note) ── */}
@@ -343,7 +472,6 @@ export function SheetMusicDisplay({
         }}
       >
         <div
-          ref={notesContainerRef}
           className="absolute top-0 left-0"
           style={{
             width: totalNotesWidth,
@@ -352,13 +480,85 @@ export function SheetMusicDisplay({
             transition: 'transform 0.55s cubic-bezier(0.16, 1, 0.28, 1)',
             willChange: 'transform',
           }}
-        />
+        >
+          {/* Vexflow SVG canvas container (renders staff lines, notes, double barlines and in-staff key changes) */}
+          <div ref={notesContainerRef} className="absolute inset-0 pointer-events-none" />
+        </div>
       </div>
     </div>
   );
 }
 
 /* ── Helpers ──────────────────────────────────────────────── */
+
+function applySheetColors(
+  container: HTMLElement,
+  notes: ExerciseNote[],
+  activeIndex: number,
+  staffLineColor: string,
+  symbolColor: string,
+  defaultNoteColor: string,
+  statusColors: { success: string; error: string; active: string }
+) {
+  // 1. Color in-staff key signatures (sharps / flats in stave transitions)
+  container.querySelectorAll('.vf-keysignature, .vf-keysignature path, .vf-keysignature text').forEach((el) => {
+    el.setAttribute('fill', symbolColor);
+    el.setAttribute('stroke', symbolColor);
+    (el as SVGElement).style.fill = symbolColor;
+    (el as SVGElement).style.stroke = symbolColor;
+  });
+
+  // 2. Color stave lines and barlines (double barlines and staff lines)
+  container.querySelectorAll('.vf-stave path, .vf-stave line, .vf-barline, .vf-barline path, .vf-barline line').forEach((el) => {
+    el.setAttribute('stroke', staffLineColor);
+    (el as SVGElement).style.stroke = staffLineColor;
+  });
+
+  // 3. Color all StaveNotes precisely by their index and status (notehead, stem, flags)
+  const staveNoteGroups = container.querySelectorAll('.vf-stavenote');
+  staveNoteGroups.forEach((group, idx) => {
+    const note = notes[idx];
+    if (!note) return;
+
+    const isCurrent = idx === activeIndex;
+    let color = defaultNoteColor;
+    if (note.status === 'correct') {
+      color = statusColors.success;
+    } else if (note.status === 'incorrect') {
+      color = statusColors.error;
+    } else if (isCurrent) {
+      color = statusColors.active;
+    }
+
+    // Color every path, line, rect inside this stavenote (including stem and notehead)
+    group.querySelectorAll('path, line, rect, ellipse').forEach((child) => {
+      // If it's an annotation text/box, keep error color
+      if (child.closest('.vf-annotation') || child.classList.contains('vf-annotation')) return;
+
+      child.setAttribute('fill', color);
+      child.setAttribute('stroke', color);
+      (child as SVGElement).style.fill = color;
+      (child as SVGElement).style.stroke = color;
+    });
+  });
+
+  // 4. Any remaining blackish glyphs (e.g. key signature glyphs without class names)
+  container.querySelectorAll('path, line, rect').forEach((el) => {
+    if (el.closest('.vf-stavenote')) return; // Preserve notes
+    const fill = el.getAttribute('fill');
+    const stroke = el.getAttribute('stroke');
+    const isBlack = (v: string | null) => !v || v === '#000' || v === '#000000' || v === 'black' || /^rgb\(0,\s*0,\s*0\)/.test(v ?? '');
+
+    if (isBlack(fill)) {
+      el.setAttribute('fill', symbolColor);
+      (el as SVGElement).style.fill = symbolColor;
+    }
+    if (isBlack(stroke)) {
+      el.setAttribute('stroke', staffLineColor);
+      (el as SVGElement).style.stroke = staffLineColor;
+    }
+  });
+}
 
 function normalizeSvg(container: HTMLElement) {
   const svg = container.querySelector('svg');

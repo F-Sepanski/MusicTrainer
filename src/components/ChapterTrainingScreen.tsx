@@ -17,7 +17,7 @@ import { SettingsModal } from './SettingsModal';
 import { useTheme } from '../theme/ThemeContext';
 import { appendHistory, markExercisePassed, saveLastExercise, loadLastExercise, loadProgress, DIFFICULTY_RANK } from '../storage/storage';
 import { generateExercise, resetNoteIdCounter, configFromExercise } from '../exercise/generator';
-import { buildCurriculum, getMaxUnlockedChapter, DIFFICULTY_NOTE_COUNT, DIFFICULTY_TIME_LIMIT_MS, DIFFICULTY_LABELS, PASS_ACCURACY } from '../exercise/curriculum';
+import { buildCurriculum, getMaxUnlockedChapter, getKeyDisplayName, DIFFICULTY_NOTE_COUNT, DIFFICULTY_TIME_LIMIT_MS, DIFFICULTY_LABELS, PASS_ACCURACY } from '../exercise/curriculum';
 import { AdaptedInstrumentInput, NoteLabelDisplay } from './inputs';
 import { parseNoteToMidi } from '../audio/noteFrequencies';
 import type { ExerciseNote, PitchData, AppPhase, SessionResult } from '../types';
@@ -781,6 +781,24 @@ export function ChapterTrainingScreen({ wizardConfig, onExit, onUpdateConfig }: 
                   style={{ width: `${(answeredCount / Math.max(notes.length, 1)) * 100}%` }}
                 />
               </div>
+
+              {/* Dynamic Key Signature Badge */}
+              {(selectedExercise?.keyFifths !== 0 || !!selectedExercise?.keyFifthsPool) && (
+                <div className="flex items-center justify-between text-xs pt-1 px-0.5">
+                  <div className="flex items-center gap-1.5 font-semibold text-neon-purple bg-purple-500/15 border border-purple-500/30 px-3 py-1 rounded-full transition-all">
+                    <Icon name="keys" size={13} />
+                    <span>
+                      Tonalidade: {getKeyDisplayName(currentNote?.keyFifths ?? selectedExercise?.keyFifths ?? 0, wizardConfig.notationSystem ?? 'letters')}
+                    </span>
+                  </div>
+                  {selectedExercise?.keyFifthsPool && (
+                    <span className="text-[11px] text-muted italic flex items-center gap-1">
+                      <span className="w-1.5 h-1.5 rounded-full bg-neon-cyan animate-pulse" />
+                      Troca dinâmica ativa
+                    </span>
+                  )}
+                </div>
+              )}
             </div>
 
             {/* Sheet music with key signature */}
