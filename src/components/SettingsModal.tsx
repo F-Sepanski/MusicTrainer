@@ -8,8 +8,9 @@
 
 import { useState } from 'react';
 import { Modal, Slider, Button } from './ui';
-import { Icon, type IconName } from './Icon';
-import type { WizardConfig, InputMode, ManualType, InstrumentType } from '../types/wizard';
+import { Icon } from './Icon';
+import { INSTRUMENTS, MANUAL_TYPES } from '@/shared/domain';
+import type { WizardConfig } from '../types/wizard';
 
 interface Props {
   open: boolean;
@@ -19,23 +20,6 @@ interface Props {
   /** Opens the full setup wizard (granular config). */
   onRunWizard?: () => void;
 }
-
-const INSTRUMENTS: { type: InstrumentType; label: string; icon: IconName }[] = [
-  { type: 'piano', label: 'Piano', icon: 'piano' },
-  { type: 'guitar', label: 'Violão', icon: 'guitar' },
-  { type: 'violin', label: 'Violino', icon: 'violin' },
-  { type: 'flute', label: 'Flauta', icon: 'flute' },
-  { type: 'saxophone', label: 'Saxofone', icon: 'sax' },
-  { type: 'trumpet', label: 'Trompete', icon: 'trumpet' },
-  { type: 'voice', label: 'Voz', icon: 'voice' },
-  { type: 'other', label: 'Outro', icon: 'other' },
-];
-
-const MANUAL_TYPES: { type: ManualType; label: string; icon: IconName }[] = [
-  { type: 'piano', label: 'Teclado/Piano', icon: 'piano' },
-  { type: 'guitar', label: 'Braço de Violão', icon: 'guitar' },
-  { type: 'circle', label: 'Círculo de Quintas', icon: 'music' },
-];
 
 export function SettingsModal({ open, onClose, config, onSave, onRunWizard }: Props) {
   const [draft, setDraft] = useState<WizardConfig>(config);

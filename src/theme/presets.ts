@@ -5,7 +5,7 @@
  * @module theme/presets
  */
 
-import type { CustomTheme, ThemePreset } from './types';
+import type { CustomTheme, ThemePreset, ThemeConfig } from './types';
 import { UI_FONTS } from './types';
 
 export const PRESET_THEMES: Record<ThemePreset, CustomTheme> = {
@@ -266,3 +266,8 @@ export const DEFAULT_THEME_CONFIG = {
 
 /** Default font family fallback (used when a config has no font yet). */
 export const DEFAULT_UI_FONT: string = UI_FONTS.find((f) => f.id === 'inter')?.family ?? UI_FONTS[0].family;
+
+/** Default ThemeConfig used before any customization. */
+export function defaultThemeConfig(): ThemeConfig {
+  return { ...DEFAULT_THEME_CONFIG };
+}

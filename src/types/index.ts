@@ -1,20 +1,6 @@
-/** Supported clefs. 'grand' renders both treble and bass staves. */
-export type Clef = 'treble' | 'bass' | 'grand';
+import type { Clef, PitchData } from '@/shared/domain';
 
-export interface PitchData {
-  /** Detected fundamental frequency in Hz */
-  frequency: number;
-  /** MIDI note number (e.g. 60 = C4) */
-  midiNote: number;
-  /** Note name (e.g. "C4") */
-  noteName: string;
-  /** Detuning in cents from equal temperament */
-  cents: number;
-  /** RMS volume (0–1) */
-  volume: number;
-  /** Confidence of detection (0–1) */
-  confidence: number;
-}
+export type { Clef, PitchData };
 
 export interface ExerciseNote {
   /** Unique id for this note in the exercise */

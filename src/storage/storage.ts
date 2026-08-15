@@ -101,7 +101,7 @@ export function clearHistory(): void {
 }
 
 import type { ThemeConfig } from '../theme/types';
-import { defaultThemeConfig } from '../theme/apply';
+import { defaultThemeConfig } from '../theme/presets';
 
 /** Load saved theme config. */
 export function loadThemeConfig(): ThemeConfig {

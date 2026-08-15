@@ -4,9 +4,11 @@
  * @module types/wizard
  */
 
+import type { InputMode, PitchData, InstrumentType, ManualType } from '@/shared/domain';
+
+export type { InputMode, PitchData, InstrumentType, ManualType };
+
 export type Level = 'beginner' | 'learner' | 'intermediate' | 'experienced' | 'professional';
-export type InputMode = 'mic' | 'manual';
-export type ManualType = 'guitar' | 'piano' | 'circle';
 
 export interface WizardConfig {
   /** Selected microphone device ID */
@@ -33,23 +35,4 @@ export interface WizardConfig {
   notationSystem?: 'letters' | 'solfege';
   /** Octave shift / transposition: -2 (2 abaixo), -1 (1 abaixo / violão), 0 (real), 1 (1 acima), 2 (2 acima) */
   octaveShift?: number;
-}
-
-export type InstrumentType =
-  | 'piano'
-  | 'guitar'
-  | 'violin'
-  | 'flute'
-  | 'saxophone'
-  | 'trumpet'
-  | 'voice'
-  | 'other';
-
-export interface PitchData {
-  frequency: number;
-  midiNote: number;
-  noteName: string;
-  cents: number;
-  volume: number;
-  confidence: number;
 }

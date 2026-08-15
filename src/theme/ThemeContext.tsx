@@ -8,7 +8,8 @@
 import { createContext, useContext, useEffect, useState, useCallback, useMemo, type ReactNode } from 'react';
 import { loadThemeConfig, saveThemeConfig } from '../storage/storage';
 import type { ThemeConfig, BaseMode, ThemePreset, CustomTheme, UIFontId } from './types';
-import { applyTheme, resolveTheme, defaultThemeConfig } from './apply';
+import { applyTheme, resolveTheme } from './apply';
+import { defaultThemeConfig } from './presets';
 
 interface ThemeContextValue {
   /** Current theme config (preset, mode, accent) */

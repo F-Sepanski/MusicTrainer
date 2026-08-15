@@ -33,46 +33,9 @@ import {
   faEraser,
 } from '@fortawesome/free-solid-svg-icons';
 import type { IconDefinition } from '@fortawesome/fontawesome-svg-core';
+import type { IconName } from '@/shared/domain';
 
-export type IconName =
-  | 'play'
-  | 'settings'
-  | 'history'
-  | 'mic'
-  | 'music'
-  | 'tuning'
-  | 'target'
-  | 'instrument'
-  | 'clef'
-  | 'check'
-  | 'sun'
-  | 'moon'
-  | 'back'
-  | 'forward'
-  | 'sparkles'
-  | 'clock'
-  | 'piano'
-  | 'guitar'
-  | 'violin'
-  | 'flute'
-  | 'sax'
-  | 'trumpet'
-  | 'voice'
-  | 'other'
-  | 'wizard'
-  | 'chevron-right'
-  | 'chart'
-  | 'home'
-  | 'repeat'
-  | 'guitar-full'
-  | 'keyboard'
-  | 'lock'
-  | 'palette'
-  | 'eraser'
-  | 'keys'
-  | 'sharp'
-  | 'treble'
-  | 'bass';
+export type { IconName };
 
 const ICONS: Record<IconName, IconDefinition> = {
   play: faPlay,

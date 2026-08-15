@@ -46,8 +46,11 @@ export class AudioEngine {
         await this.audioContext.resume();
       }
 
-      // 3. Register AudioWorklet processor
-      await this.audioContext.audioWorklet.addModule('/src/audio/audioWorkletProcessor.ts');
+      // 3. Register AudioWorklet processor.
+      // Uses `new URL(..., import.meta.url)` so Vite emits the module as an
+      // asset in production builds (and resolves correctly in dev too).
+      const workletUrl = new URL('./audioWorkletProcessor.ts', import.meta.url);
+      await this.audioContext.audioWorklet.addModule(workletUrl);
 
       // 4. Request microphone access
       this.stream = await navigator.mediaDevices.getUserMedia({

@@ -2,7 +2,7 @@
 
 Este guia prático ensina como configurar, executar e estender o **MusicTrainer**.
 
-> **Leia primeiro**: [ARCHITECTURE.md](./ARCHITECTURE.md) (arquitetura + **políticas de estrutura**), [GUIDELINES.md](./GUIDELINES.md) (padrões de código/design).
+> **Leia primeiro**: [ARCHITECTURE.md](../architecture/ARCHITECTURE.md) (arquitetura + **políticas de estrutura**), [GUIDELINES.md](./GUIDELINES.md) (padrões de código/design).
 
 ---
 

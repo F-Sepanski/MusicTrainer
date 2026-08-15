@@ -8,7 +8,7 @@ Este guia define as regras de engenharia de software, padrões de design visual 
 
 ### 1.0. Estrutura de Slices & Dependências (Política de Arquitetura)
 
-> **Resumo executivo** — consulte [ARCHITECTURE.md §1.1](./ARCHITECTURE.md) para a versão completa.
+> **Resumo executivo** — consulte [ARCHITECTURE.md §1.1](../architecture/ARCHITECTURE.md) para a versão completa.
 
 - **Alias `@/` obrigatório** — resolve para `src/`. Imports **entre slices** usam `@/...`; imports **intra-slice** podem usar relativos. **Nunca** use `../` para cruzar o limite de um slice.
 - **Slices** — `audio/`, `components/`, `exercise/`, `storage/`, `theme/`. Cada slice expõe sua superfície pública num barrel `index.ts`. Consumidores importam **apenas do barrel**, nunca de internals de outro slice.

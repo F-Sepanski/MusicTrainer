@@ -9,9 +9,10 @@
 import { useState, useEffect, useRef, useCallback } from 'react';
 import { audioEngine } from '../audio/AudioEngine';
 import { Icon, type IconName } from './Icon';
-import { Button, Card, Slider, AnimatedSection, StatCard } from './ui';
+import { Button, Slider, AnimatedSection, StatCard } from './ui';
 import { ThemeSettings } from './ThemeSettings';
-import type { WizardConfig, InstrumentType, PitchData, Level, InputMode, ManualType } from '../types/wizard';
+import { INSTRUMENTS, MANUAL_TYPES } from '@/shared/domain';
+import type { WizardConfig, PitchData, Level, InputMode, ManualType } from '../types/wizard';
 
 interface Props {
   onComplete: (config: WizardConfig) => void;
@@ -19,29 +20,12 @@ interface Props {
   initialConfig?: WizardConfig | null;
 }
 
-const INSTRUMENTS: { type: InstrumentType; label: string; icon: IconName }[] = [
-  { type: 'piano', label: 'Piano', icon: 'piano' },
-  { type: 'guitar', label: 'Violão', icon: 'guitar' },
-  { type: 'violin', label: 'Violino', icon: 'violin' },
-  { type: 'flute', label: 'Flauta', icon: 'flute' },
-  { type: 'saxophone', label: 'Saxofone', icon: 'sax' },
-  { type: 'trumpet', label: 'Trompete', icon: 'trumpet' },
-  { type: 'voice', label: 'Voz', icon: 'voice' },
-  { type: 'other', label: 'Outro', icon: 'other' },
-];
-
 const LEVELS: { level: Level; label: string; desc: string; icon: IconName; unlock: number }[] = [
   { level: 'beginner', label: 'Iniciante', desc: 'Nunca li partitura', icon: 'target', unlock: 3 },
   { level: 'learner', label: 'Aprendiz', desc: 'Pouca experiência', icon: 'clock', unlock: 5 },
   { level: 'intermediate', label: 'Intermediário', desc: 'Lê com alguma fluência', icon: 'music', unlock: 7 },
   { level: 'experienced', label: 'Experiente', desc: 'Leitura fluente', icon: 'sparkles', unlock: 8 },
   { level: 'professional', label: 'Profissional', desc: 'Avançado', icon: 'chart', unlock: 8 },
-];
-
-const MANUAL_TYPES: { type: ManualType; label: string; icon: IconName; desc: string }[] = [
-  { type: 'piano', label: 'Teclado/Piano', icon: 'piano', desc: 'Clique nas teclas' },
-  { type: 'guitar', label: 'Braço de Violão', icon: 'guitar', desc: 'Clique nas casas' },
-  { type: 'circle', label: 'Círculo de Quintas', icon: 'music', desc: 'Selecione a nota no círculo' },
 ];
 
 interface StepProps {

@@ -8,7 +8,12 @@ Este documento descreve a estrutura interna, as camadas funcionais e o ciclo de 
 
 ```
 MusicTrainer/
-├── docs/                       # Documentação técnica e manuais
+├── docs/                       # Documentação (portal README + subpastas temáticas)
+│   ├── README.md               #   Índice/portal
+│   ├── architecture/           #   Arquitetura (estado atual exato)
+│   ├── development/            #   Guias de dev & padrões
+│   ├── system/                 #   Estrutura atual (currículo, modos de entrada)
+│   └── plan/                   #   Planos, refactor e dívida técnica
 ├── src/
 │   ├── audio/                  # Slice: Motor de áudio em tempo real (auto-contido)
 │   │   ├── index.ts            #   Superfície pública do slice (barrel)
@@ -35,14 +40,15 @@ MusicTrainer/
 │   │   └── generator.ts        #   Geração procedural (pool, midiNotes, explicitNotes, grand clef)
 │   ├── shared/                 # ★ SHARED STACK — código cross-cutting, mínimo e explícito
 │   │   └── domain/             #   Tipos/constantes canônicas de domínio (fonte única de verdade)
-│   │       ├── index.ts        #   Barrel
+│   │       ├── index.ts        #   Barrel (@/shared/domain)
 │   │       ├── clef.ts         #   Clef
 │   │       ├── difficulty.ts   #   Difficulty
 │   │       ├── inputMode.ts    #   InputMode
 │   │       ├── pitch.ts        #   PitchData
 │   │       ├── iconName.ts     #   IconName (union de ícones)
-│   │       ├── instrumentType.ts / manualType.ts / instruments.ts
-│   │       └── ...             #   INSTRUMENTS / MANUAL_TYPES
+│   │       ├── instrumentType.ts  #   InstrumentType
+│   │       ├── manualType.ts      #   ManualType
+│   │       └── instruments.ts     #   INSTRUMENTS + MANUAL_TYPES (catálogos)
 │   ├── storage/                # Slice: Persistência (localStorage)
 │   │   └── storage.ts          #   Histórico, notas, desbloqueios, tema, progresso
 │   ├── theme/                  # Shared stack: Design System
@@ -98,6 +104,38 @@ Controla o fluxo de cada sessão de prática:
 3. **Avaliação**: Valida respostas por microfone ou manual; calcula precisão, tempo de reação e desvio em cents.
 4. **Aprovação**: Um nível é aprovado com precisão ≥ limite da dificuldade (80/85/90%) **E** tempo médio ≤ limite (4s/3s/2s).
 5. **Persistência**: Salva automaticamente o progresso (maior dificuldade completada por nível) e o histórico em `src/storage/storage.ts`.
+
+---
+
+### 2.4. Camada de Navegação & Telas (`src/App.tsx` + `src/components/`)
+- **Sem router** — o `App.tsx` usa estado `useState<Screen>` com 4 telas: `'home' | 'wizard' | 'training' | 'history'`, renderizadas condicionalmente sob o `ThemeProvider`.
+- **Primeiro acesso**: se não houver config salva (`loadConfig()`), inicia direto no `wizard`; caso contrário, `home`.
+- **Telas**:
+  - `SetupWizard` — assistente de calibração (mic/manual), completa via `onComplete` → `saveConfig` + volta para `home`.
+  - `HomeScreen` — tela inicial; retoma o último exercício treinado e mostra "Concluído"; navega para wizard/treino/histórico.
+  - `ChapterTrainingScreen` — treino (Curso → Capítulo → Nível), HUD, seleção de dificuldade; ao sair recarrega o histórico.
+  - `HistoryScreen` — histórico de sessões com limpeza (`clearHistory`).
+- **Estado global de tema**: `ThemeProvider` (contexto) resolve e aplica o tema a variáveis CSS em `:root`.
+
+---
+
+### 2.5. Camada de Persistência (`src/storage/storage.ts`)
+Encapsula todo o `localStorage` com tipagem forte e chaves versionadas:
+- `music-trainer:config` — configuração do wizard.
+- `music-trainer:history` — histórico de sessões (cap 50).
+- `music-trainer:theme` — tema escolhido.
+- `music-trainer:progress` (+ `progress-version`) — maior dificuldade aprovada por exercício.
+- `music-trainer:last-exercise` — último exercício treinado (retomada).
+- **`CURRICULUM_VERSION`**: ao alterar IDs do currículo, incrementar para resetar progresso obsoleto.
+- **Regra**: componentes nunca acessam `localStorage` direto — usam as funções de `@/storage`.
+
+---
+
+### 2.6. Camada de Temas / Design System (`src/theme/`)
+- `types.ts` — tipos `ThemeConfig`, `CustomTheme`, `ThemePreset`, `UIFontId`, `UI_FONTS`, `ACCENT_AUTO`.
+- `presets.ts` — `PRESET_THEMES` (18 presets dark/light), `PRESET_LIST`, `PRESET_NAMES`, `DEFAULT_THEME_CONFIG`, `DEFAULT_UI_FONT` e `defaultThemeConfig()` (fonte única p/ storage).
+- `apply.ts` — `resolveTheme(config)` e `applyTheme(theme, useAccentText, fontId)` (aplica variáveis CSS em `:root`). Não exporta mais `defaultThemeConfig` (movido p/ `presets.ts`).
+- `ThemeContext.tsx` — provedor React; carrega/salva tema via `storage` e reaplica as variáveis CSS.
 
 ---
 

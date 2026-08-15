@@ -5,10 +5,9 @@
  * @module exercise/curriculum
  */
 
-export type Difficulty = 'easy' | 'medium' | 'hard';
-export type InputMode = 'mic' | 'manual';
-/** Supported clefs. 'grand' = both staves simultaneously. */
-export type Clef = 'treble' | 'bass' | 'grand';
+import type { Clef, Difficulty, InputMode } from '@/shared/domain';
+
+export type { Clef, Difficulty, InputMode };
 
 export interface KeySignature {
   /** Number of sharps (positive) or flats (negative) */

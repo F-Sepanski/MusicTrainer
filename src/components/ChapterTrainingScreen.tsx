@@ -22,7 +22,7 @@ import { AdaptedInstrumentInput, NoteLabelDisplay } from './inputs';
 import { parseNoteToMidi } from '../audio/noteFrequencies';
 import type { ExerciseNote, PitchData, AppPhase, SessionResult } from '../types';
 import type { WizardConfig } from '../types/wizard';
-import type { InputMode, Chapter, ChapterExercise, Difficulty, Course, Clef } from '../exercise/curriculum';
+import type { InputMode, Chapter, ChapterExercise, Difficulty } from '../exercise/curriculum';
 
 interface Props {
   wizardConfig: WizardConfig;

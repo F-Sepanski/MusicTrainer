@@ -1,5 +1,7 @@
 # 🎼 MusicTrainer — Plano de Ação Completo para App de Sight Reading
 
+> ⚠️ **DOCUMENTO HISTÓRICO (arquivo `.legacy`)** — este plano reflete o estado do projeto em **2026-08-14** e **não representa mais a realidade da codebase**. A arquitetura/estrutura atuais estão descritas em [ARCHITECTURE.md](../architecture/ARCHITECTURE.md). A lista de pendências atuais está em [INCONSISTENCIES_BUGS_LEGACY.md](./INCONSISTENCIES_BUGS_LEGACY.md). Mantido apenas como referência histórica do roadmap original.
+
 Plano de ação estratégico e técnico para o desenvolvimento de um aplicativo web/mobile moderno, ultrarrápido e interativo para **treinamento de leitura de partituras à primeira vista (Sight Reading)**, equipado com rota progressiva de exercícios, detecção de notas em tempo real via microfone e análises estatísticas avançadas.
 
 ---
@@ -34,7 +36,7 @@ Plano de ação estratégico e técnico para o desenvolvimento de um aplicativo 
 | Histórico de Sessões | ✅ Implementado | Persistido em `localStorage` |
 | Interface Unificada (AppLayout) | ✅ Implementado | Header único, transições fade |
 | **Metrônomo** | ❌ Não iniciado | Planejado |
-| **PWA / Offline** | 🔶 Parcial | Plugin instalado, ainda não configurado no `vite.config.ts` |
+| **PWA / Offline** | ❌ Não iniciado | Plugin `vite-plugin-pwa` **removido** do projeto (2026-08-15) — nunca foi configurado |
 | **Dexie.js / IndexedDB** | ❌ Não iniciado | Ainda usa `localStorage` |
 | **Dashboard com Gráficos** | ❌ Não iniciado | Recharts/Chart.js ainda não adicionados |
 | **Mapa de Calor da Pauta** | ❌ Não iniciado | Planejado |

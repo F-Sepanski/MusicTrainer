@@ -6,7 +6,7 @@
 
 import type { CustomTheme, ThemeConfig } from './types';
 import { ACCENT_AUTO, UI_FONTS } from './types';
-import { PRESET_THEMES, DEFAULT_THEME_CONFIG, DEFAULT_UI_FONT } from './presets';
+import { PRESET_THEMES, DEFAULT_UI_FONT } from './presets';
 
 /** Resolve a ThemeConfig into a concrete CustomTheme. */
 export function resolveTheme(config: ThemeConfig): CustomTheme {
@@ -117,9 +117,4 @@ function hexToRgb(hex: string): { r: number; g: number; b: number } {
   if (h.length === 3) h = h.split('').map((x) => x + x).join('');
   const num = parseInt(h, 16);
   return { r: (num >> 16) & 255, g: (num >> 8) & 255, b: num & 255 };
-}
-
-/** Default ThemeConfig used before any customization. */
-export function defaultThemeConfig(): ThemeConfig {
-  return { ...DEFAULT_THEME_CONFIG };
 }
